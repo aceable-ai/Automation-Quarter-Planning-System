@@ -6,8 +6,6 @@ import { arch, type Track, type Project, type Initiative } from "@/lib/automatio
 type StatusColor = "green" | "blue" | "red";
 
 const HL = "#4f46e5";
-const HLbg = "rgba(79,70,229,0.07)";
-const HLborder = "rgba(79,70,229,0.3)";
 
 const STATUS: Record<StatusColor, { bg: string; border: string; label: string; hex: string }> = {
   green: { bg: "#f0fdf4", border: "#16a34a", label: "DR Agreed",        hex: "#16a34a" },
@@ -192,11 +190,10 @@ function ListProjectRow({
         onClick={onCardClick}
         style={{
           padding: "10px 12px",
-          background: sc ? sc.bg : sys.r ? HLbg : "#f9f9f9",
+          background: sc ? sc.bg : "#f9f9f9",
           borderRadius: 8, cursor: "pointer", userSelect: "none" as const,
           border: isSelected ? "2px solid #4f46e5"
                : sc ? `2px solid ${sc.border}`
-               : sys.r ? `1.5px solid ${HLborder}`
                : "1px solid transparent",
           transition: "border 0.1s, background 0.1s",
         }}
@@ -218,7 +215,7 @@ function ListProjectRow({
           {sc && <div style={{ width: 8, height: 8, borderRadius: "50%", background: sc.border, flexShrink: 0 }} />}
           <EditableTitle
             value={displayName} onSave={onRename}
-            style={{ fontSize: 13, fontWeight: 600, color: isSelected ? HL : sys.r ? HL : "#222" }}
+            style={{ fontSize: 13, fontWeight: 600, color: isSelected ? HL : "#222" }}
           />
           {sys.i.length > 0 && <span style={{ fontSize: 11, color: "#999" }}>({sys.i.length})</span>}
           {sys.imp && imp && (
@@ -326,10 +323,9 @@ function KanbanCard({
       onClick={onCardClick}
       style={{
         padding: "10px 12px", borderRadius: 8,
-        background: sc ? sc.bg : sys.r ? HLbg : "#fff",
+        background: sc ? sc.bg : "#fff",
         border: isSelected ? "2px solid #4f46e5"
              : sc ? `2px solid ${sc.border}`
-             : sys.r ? `1.5px solid ${HLborder}`
              : "1px solid #e2e2e2",
         cursor: "grab", userSelect: "none" as const,
         transition: "border 0.1s, background 0.1s",
@@ -350,7 +346,7 @@ function KanbanCard({
       </div>
       <EditableTitle
         value={displayName} onSave={onRename}
-        style={{ fontSize: 12, fontWeight: 600, color: isSelected ? HL : sys.r ? HL : "#222", lineHeight: 1.4 }}
+        style={{ fontSize: 12, fontWeight: 600, color: isSelected ? HL : "#222", lineHeight: 1.4 }}
       />
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap" as const }}>
         {sys.imp && imp && (
