@@ -3,6 +3,21 @@
 import { useState, useMemo } from 'react';
 import { PLATFORMS, DB_STYLES, FILTERS } from '@/lib/platform-data';
 
+function LegendRow({ color, label, detail }: { color: string; label: string; detail: string }) {
+  return (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <div style={{
+        marginTop: 3, width: 12, height: 12, borderRadius: '50%',
+        background: color, flexShrink: 0,
+      }} />
+      <div>
+        <span style={{ fontWeight: 600, fontSize: 13, color: '#1A1A18' }}>{label}</span>
+        <span style={{ fontSize: 12, color: '#6B6B67', marginLeft: 6 }}>{detail}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function PlatformMap() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
@@ -79,6 +94,111 @@ export default function PlatformMap() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ padding: '20px 40px 0' }}>
+        <details style={{ background: '#fff', border: '1px solid #E5E4E0', borderRadius: 10, overflow: 'hidden' }}>
+          <summary style={{
+            padding: '12px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+            color: '#1A1A18', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 8,
+            userSelect: 'none',
+          }}>
+            <span style={{ fontSize: 14 }}>📖</span> How to read this map
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9B9B97', fontWeight: 400 }}>click to expand</span>
+          </summary>
+
+          <div style={{ padding: '0 18px 20px', borderTop: '1px solid #F0EFEB' }}>
+            {/* Purpose statement */}
+            <p style={{ fontSize: 13, color: '#444441', margin: '16px 0 20px', lineHeight: 1.6, maxWidth: 700 }}>
+              Each card represents a <strong>platform</strong> — a logical product or tool built for a specific team.
+              The <strong>database chips</strong> show which underlying databases must be built or connected to make that platform work.
+              The <strong>pages / outputs</strong> are the individual views, reports, or tools that live inside the platform.
+            </p>
+
+            {/* Annotated card anatomy */}
+            <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+
+              {/* Mini mock card */}
+              <div style={{
+                background: '#FAFAF8', border: '1px solid #E5E4E0', borderRadius: 10,
+                overflow: 'hidden', width: 260, flexShrink: 0, fontSize: 12,
+              }}>
+                <div style={{ borderLeft: '4px solid #378ADD', padding: '12px 14px 10px', borderBottom: '1px solid #F0EFEB' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#378ADD', display: 'inline-block', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, color: '#1A1A18', fontSize: 13 }}>Platform name</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#6B6B67', marginBottom: 8, paddingLeft: 15 }}>Who uses this platform</div>
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', paddingLeft: 15 }}>
+                    <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: '#E8F2FC', color: '#0C447C', border: '1px solid #A8CFF0' }}>DB required ①</span>
+                    <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: '#EBF5E0', color: '#27500A', border: '1px solid #AADD80' }}>DB required ②</span>
+                  </div>
+                </div>
+                <div style={{ padding: '10px 14px 12px' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#888884', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Pages / outputs</div>
+                  {['Page or report name', 'Another view or tool', 'Another output'].map(p => (
+                    <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                      <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#378ADD', opacity: 0.5, display: 'inline-block', flexShrink: 0 }} />
+                      <span style={{ color: '#3A3A37', fontSize: 11.5 }}>{p}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Annotations */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
+                <LegendRow color="#378ADD" label="Color stripe + dot" detail="Identifies the platform grouping — matches the filter buttons at the top" />
+                <LegendRow color="#6B6B67" label="User audience" detail="The teams or roles who use this platform day-to-day" />
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <div style={{
+                    marginTop: 2, width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                    background: 'linear-gradient(135deg, #E8F2FC 0%, #EBF5E0 100%)',
+                    border: '1px solid #DDDDD8', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14,
+                  }}>🗄️</div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#1A1A18', marginBottom: 2 }}>Database chips <span style={{ color: '#E04E1A', fontSize: 11, fontWeight: 600 }}>← key</span></div>
+                    <div style={{ fontSize: 12, color: '#444441', lineHeight: 1.5, maxWidth: 380 }}>
+                      These are the <strong>databases that must be built or connected</strong> to power this platform.
+                      Each chip color = a different data domain. If a platform has 2 chips, it needs data from both sources to function.
+                    </div>
+                  </div>
+                </div>
+                <LegendRow color="#888884" label="Pages / outputs" detail="The individual views, dashboards, reports, or tools that the platform exposes to users" />
+              </div>
+            </div>
+
+            {/* DB chip legend */}
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #F0EFEB' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#888884', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                Database types
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { label: 'DataMart / Power BI', cls: 'datamart' },
+                  { label: 'Marketing intel', cls: 'marketing' },
+                  { label: 'Market share intel', cls: 'marketshare' },
+                  { label: 'Mongo', cls: 'mongo' },
+                  { label: 'B2B intel', cls: 'b2b' },
+                  { label: 'Design intel', cls: 'design' },
+                  { label: 'Regulatory requirements', cls: 'regulatory' },
+                  { label: 'Internal / no DB', cls: 'internal' },
+                ].map(({ label, cls }) => {
+                  const s = DB_STYLES[cls] ?? { bg: '#F2F2EE', color: '#444441', border: '#CCCCCC' };
+                  return (
+                    <span key={cls} style={{
+                      padding: '4px 11px', borderRadius: 10, fontSize: 11.5, fontWeight: 500,
+                      background: s.bg, color: s.color, border: `1px solid ${s.border}`,
+                    }}>
+                      {label}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
 
       {/* Grid */}
