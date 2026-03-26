@@ -551,10 +551,6 @@ export default function AutomationDashboard() {
               >{v === "list" ? "List View" : "Kanban"}</button>
             ))}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 8 }}>
-            <div style={{ width: 14, height: 14, borderRadius: 4, background: HLbg, border: `1.5px solid ${HLborder}` }} />
-            <span style={{ fontSize: 11, color: HL, fontWeight: 600 }}>Potential OKR</span>
-          </div>
           {selected.size > 0 && (
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 12, color: "#4f46e5", fontWeight: 600 }}>{selected.size} selected</span>
