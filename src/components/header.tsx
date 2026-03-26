@@ -1,5 +1,4 @@
 import { APP_NAME } from '@/lib/config';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
 import Link from 'next/link';
 
 export default function Header() {
@@ -14,14 +13,6 @@ export default function Header() {
             <span className="text-xl font-bold">{APP_NAME}</span>
           </Link>
         </div>
-      </div>
-      <div className="ml-auto flex items-center gap-4">
-        <SignedOut>
-          <SignInButton />
-        </SignedOut>
-        <SignedIn>
-          <UserButton />
-        </SignedIn>
       </div>
     </header>
   );
