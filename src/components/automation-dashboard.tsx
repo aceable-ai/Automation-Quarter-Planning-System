@@ -249,16 +249,23 @@ function ListProjectRow({
 
 function ListTrackRow({
   tr, openTrack, setOT, openSys, setOS,
-  names, quarters, colors, selected, onCardClick, onRename,
+  names, quarters, colors, selected, onCardClick, onRename, impactFilter,
 }: {
   tr: Track; openTrack: string | null; setOT: (v: string | null) => void;
   openSys: string | null; setOS: (v: string | null) => void;
   names: Record<string, string>; quarters: Record<string, string>;
   colors: Record<string, StatusColor>; selected: Set<string>;
   onCardClick: (n: string) => void; onRename: (n: string, v: string) => void;
+  impactFilter: string;
 }) {
   const isOpen = openTrack === tr.t;
+  const visibleSystems = impactFilter === "All"
+    ? tr.s
+    : tr.s.filter(s => s.imp === impactFilter);
   const ic = tr.s.reduce((a, s) => a + s.i.length, 0);
+
+  if (visibleSystems.length === 0) return null;
+
   return (
     <div style={{ border: "1px solid #e2e2e2", borderRadius: 10, overflow: "hidden", background: "#fff" }}>
       <div
@@ -270,7 +277,7 @@ function ListTrackRow({
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" as const }}>
             <span style={{ fontSize: 15, fontWeight: 700, color: tr.c }}>{tr.t}</span>
             <span style={{ fontSize: 11, color: "#888", background: "#f5f5f5", padding: "2px 8px", borderRadius: 4 }}>
-              {tr.s.length} projects · {ic} tasks
+              {impactFilter === "All" ? `${tr.s.length} projects` : `${visibleSystems.length} of ${tr.s.length} projects`} · {ic} tasks
             </span>
           </div>
           <div style={{ fontSize: 12, color: "#777", marginTop: 2 }}>{tr.d}</div>
@@ -278,7 +285,7 @@ function ListTrackRow({
       </div>
       {isOpen && (
         <div style={{ padding: "0 16px 12px 20px", borderLeft: `4px solid ${tr.c}` }}>
-          {tr.s.map(sys => (
+          {visibleSystems.map(sys => (
             <ListProjectRow
               key={sys.n} sys={sys} track={tr}
               openSys={openSys} setOS={setOS}
@@ -445,6 +452,7 @@ export default function AutomationDashboard() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [brush, setBrush] = useState<StatusColor | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  const [impactFilter, setImpactFilter] = useState<string>("All");
 
   const dragNameRef = useRef<string | null>(null);
 
@@ -561,17 +569,48 @@ export default function AutomationDashboard() {
 
       {/* List view */}
       {view === "list" && (
-        <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
-          {arch.map(tr => (
-            <ListTrackRow
-              key={tr.t} tr={tr}
-              openTrack={openTrack} setOT={setOT}
-              openSys={openSys} setOS={setOS}
-              names={names} quarters={quarters} colors={colors} selected={selected}
-              onCardClick={handleCardClick} onRename={handleRename}
-            />
-          ))}
-        </div>
+        <>
+          <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" as const }}>
+            {["All", "High", "Med-High", "Medium", "Low"].map(level => {
+              const imp = IMP[level];
+              const isActive = impactFilter === level;
+              return (
+                <button
+                  key={level}
+                  onClick={() => setImpactFilter(level)}
+                  style={{
+                    padding: "4px 12px", borderRadius: 20, cursor: "pointer", fontSize: 12,
+                    fontWeight: isActive ? 600 : 400,
+                    border: isActive
+                      ? `1.5px solid ${imp ? imp.text : "#111"}`
+                      : "1px solid #ddd",
+                    background: isActive
+                      ? (imp ? imp.bg : "#222")
+                      : "#fff",
+                    color: isActive
+                      ? (imp ? imp.text : "#fff")
+                      : "#555",
+                    transition: "all 0.1s",
+                  }}
+                >
+                  {level === "All" ? "All impact" : level}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
+            {arch.map(tr => (
+              <ListTrackRow
+                key={tr.t} tr={tr}
+                openTrack={openTrack} setOT={setOT}
+                openSys={openSys} setOS={setOS}
+                names={names} quarters={quarters} colors={colors} selected={selected}
+                onCardClick={handleCardClick} onRename={handleRename}
+                impactFilter={impactFilter}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       {/* Kanban view */}
