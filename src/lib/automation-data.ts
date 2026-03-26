@@ -150,7 +150,7 @@ export const arch: Track[] = [
   {
     t: "B2C Growth",
     d: "Market, measure, and sell to consumers across all channels",
-    c: "#2563eb",
+    c: "#0e7490",
     s: [
       {
         n: "CL: SEO Content Factory", r: true, imp: "High",
@@ -327,7 +327,7 @@ export const arch: Track[] = [
   {
     t: "Platform & Engineering Velocity",
     d: "Reduce engineering toil and speed up dev cycles",
-    c: "#6366f1",
+    c: "#b45309",
     s: [
       {
         n: "Developer Workflow Automation", imp: "Medium",
@@ -375,7 +375,7 @@ export const arch: Track[] = [
   {
     t: "Data & Analytics Ops",
     d: "Reliable data pipelines, reporting, and data quality",
-    c: "#0891b2",
+    c: "#374151",
     s: [
       {
         n: "Data Pipeline Reliability", imp: "Medium",

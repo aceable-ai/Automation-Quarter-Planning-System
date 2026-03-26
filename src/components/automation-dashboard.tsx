@@ -556,7 +556,7 @@ export default function AutomationDashboard() {
         <p style={{ fontSize: 13, color: "#666", margin: "4px 0 0" }}>
           {arch.length} tracks · {ct.ts} projects · {ct.ii} tasks
           {blueCount > 0 && (
-            <> · <span style={{ color: STATUS.blue.hex, fontWeight: 600 }}>{blueCount} suggested topic{blueCount !== 1 ? "s" : ""}</span></>
+            <> · <span style={{ color: STATUS.blue.hex, fontWeight: 600 }}>{blueCount} recommended project{blueCount !== 1 ? "s" : ""}</span></>
           )}
           {greenCount > 0 && (
             <> · <span style={{ color: STATUS.green.border, fontWeight: 600 }}>{greenCount} potential OKR{greenCount !== 1 ? "s" : ""}</span></>
