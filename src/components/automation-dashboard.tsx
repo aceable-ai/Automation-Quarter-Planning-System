@@ -20,6 +20,8 @@ const IMP: Record<string, { bg: string; text: string; border: string }> = {
   Low:        { bg: "#f3f4f6", text: "#6b7280", border: "#d1d5db" },
 };
 
+const IMP_ORDER = ["High", "Med-High", "Medium", "Low", ""];
+
 const COLS = ["In Progress", "Q1 2026", "Q2 2026", "Q3+ 2026", "Backlog"];
 
 function bucket(q: string): string {
@@ -174,15 +176,17 @@ function ListProjectRow({
   sys, track, openSys, setOS,
   displayName, onRename, displayQ,
   status, isSelected, onCardClick,
+  displayImp, onImpCycle,
 }: {
   sys: Project; track: Track;
   openSys: string | null; setOS: (v: string | null) => void;
   displayName: string; onRename: (v: string) => void; displayQ: string;
   status: StatusColor | undefined; isSelected: boolean; onCardClick: () => void;
+  displayImp: string; onImpCycle: () => void;
 }) {
   const sOpen = openSys === sys.n;
   const sc = status ? STATUS[status] : null;
-  const imp = IMP[sys.imp];
+  const imp = IMP[displayImp];
 
   return (
     <div style={{ marginTop: 8 }}>
@@ -218,11 +222,17 @@ function ListProjectRow({
             style={{ fontSize: 13, fontWeight: 600, color: isSelected ? HL : "#222" }}
           />
           {sys.i.length > 0 && <span style={{ fontSize: 11, color: "#999" }}>({sys.i.length})</span>}
-          {sys.imp && imp && (
-            <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, background: imp.bg, color: imp.text, border: `1px solid ${imp.border}`, fontWeight: 600 }}>
-              {sys.imp}
-            </span>
-          )}
+          <span
+            onClick={e => { e.stopPropagation(); onImpCycle(); }}
+            title="Click to change impact"
+            style={{
+              fontSize: 10, padding: "2px 7px", borderRadius: 4, fontWeight: 600, cursor: "pointer", flexShrink: 0,
+              ...(imp
+                ? { background: imp.bg, color: imp.text, border: `1px solid ${imp.border}` }
+                : { background: "#f9f9f9", color: "#ccc", border: "1px dashed #ddd" }
+              ),
+            }}
+          >{displayImp || "+ impact"}</span>
           <span style={{ marginLeft: "auto", fontSize: 11, flexShrink: 0, color: sc ? sc.border : "#999", fontWeight: sc ? 600 : 400 }}>
             {displayQ}
           </span>
@@ -246,19 +256,20 @@ function ListProjectRow({
 
 function ListTrackRow({
   tr, openTrack, setOT, openSys, setOS,
-  names, quarters, colors, selected, onCardClick, onRename, impactFilter,
+  names, quarters, colors, impacts, selected, onCardClick, onRename, onImpactCycle, impactFilter,
 }: {
   tr: Track; openTrack: string | null; setOT: (v: string | null) => void;
   openSys: string | null; setOS: (v: string | null) => void;
   names: Record<string, string>; quarters: Record<string, string>;
-  colors: Record<string, StatusColor>; selected: Set<string>;
+  colors: Record<string, StatusColor>; impacts: Record<string, string>; selected: Set<string>;
   onCardClick: (n: string) => void; onRename: (n: string, v: string) => void;
+  onImpactCycle: (n: string, cur: string) => void;
   impactFilter: string;
 }) {
   const isOpen = openTrack === tr.t;
   const visibleSystems = impactFilter === "All"
     ? tr.s
-    : tr.s.filter(s => s.imp === impactFilter);
+    : tr.s.filter(s => (impacts[s.n] ?? s.imp) === impactFilter);
   const ic = tr.s.reduce((a, s) => a + s.i.length, 0);
 
   if (visibleSystems.length === 0) return null;
@@ -292,6 +303,8 @@ function ListTrackRow({
               status={colors[sys.n]}
               isSelected={selected.has(sys.n)}
               onCardClick={() => onCardClick(sys.n)}
+              displayImp={impacts[sys.n] ?? sys.imp}
+              onImpCycle={() => onImpactCycle(sys.n, impacts[sys.n] ?? sys.imp)}
             />
           ))}
         </div>
@@ -305,16 +318,18 @@ function ListTrackRow({
 function KanbanCard({
   sys, track, displayName, onRename,
   status, isSelected, onCardClick, onDragStart,
+  displayImp, onImpCycle,
 }: {
   sys: Project; track: Track;
   displayName: string; onRename: (v: string) => void;
   status: StatusColor | undefined; isSelected: boolean;
   onCardClick: () => void;
   onDragStart: (e: React.DragEvent) => void;
+  displayImp: string; onImpCycle: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const sc = status ? STATUS[status] : null;
-  const imp = IMP[sys.imp];
+  const imp = IMP[displayImp];
 
   return (
     <div
@@ -349,11 +364,17 @@ function KanbanCard({
         style={{ fontSize: 12, fontWeight: 600, color: isSelected ? HL : "#222", lineHeight: 1.4 }}
       />
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, flexWrap: "wrap" as const }}>
-        {sys.imp && imp && (
-          <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 3, background: imp.bg, color: imp.text, border: `1px solid ${imp.border}`, fontWeight: 600 }}>
-            {sys.imp}
-          </span>
-        )}
+        <span
+          onClick={e => { e.stopPropagation(); onImpCycle(); }}
+          title="Click to change impact"
+          style={{
+            fontSize: 9, padding: "1px 6px", borderRadius: 3, fontWeight: 600, cursor: "pointer", flexShrink: 0,
+            ...(imp
+              ? { background: imp.bg, color: imp.text, border: `1px solid ${imp.border}` }
+              : { background: "#f9f9f9", color: "#ccc", border: "1px dashed #ddd" }
+            ),
+          }}
+        >{displayImp || "+ impact"}</span>
         <span style={{ fontSize: 10, color: "#aaa" }}>{sys.i.length} tasks</span>
         <span style={{ fontSize: 10, color: "#bbb", marginLeft: "auto" }}>{sys.cap}</span>
         {sys.i.length > 0 && (
@@ -379,18 +400,19 @@ function KanbanCard({
 }
 
 function KanbanColumn({
-  col, items, names, colors, selected,
-  onCardClick, onRename, onDragStart, onDragEnter, onDrop, isOver,
+  col, items, names, colors, impacts, selected,
+  onCardClick, onRename, onDragStart, onDragEnter, onDrop, isOver, onImpactCycle,
 }: {
   col: string;
   items: { sys: Project; track: Track }[];
   names: Record<string, string>;
-  colors: Record<string, StatusColor>; selected: Set<string>;
+  colors: Record<string, StatusColor>; impacts: Record<string, string>; selected: Set<string>;
   onCardClick: (n: string) => void; onRename: (n: string, v: string) => void;
   onDragStart: (e: React.DragEvent, n: string) => void;
   onDragEnter: (col: string) => void;
   onDrop: (e: React.DragEvent, col: string) => void;
   isOver: boolean;
+  onImpactCycle: (n: string, cur: string) => void;
 }) {
   return (
     <div
@@ -417,6 +439,8 @@ function KanbanColumn({
             isSelected={selected.has(sys.n)}
             onCardClick={() => onCardClick(sys.n)}
             onDragStart={e => onDragStart(e, sys.n)}
+            displayImp={impacts[sys.n] ?? sys.imp}
+            onImpCycle={() => onImpactCycle(sys.n, impacts[sys.n] ?? sys.imp)}
           />
         ))}
         {items.length === 0 && (
@@ -445,6 +469,7 @@ export default function AutomationDashboard() {
   const [names, setNames] = useState<Record<string, string>>({});
   const [quarters, setQuarters] = useState<Record<string, string>>({});
   const [colors, setColors] = useState<Record<string, StatusColor>>({});
+  const [impacts, setImpacts] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [brush, setBrush] = useState<StatusColor | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
@@ -479,6 +504,11 @@ export default function AutomationDashboard() {
 
   function handleRename(originalName: string, newName: string) {
     setNames(prev => ({ ...prev, [originalName]: newName }));
+  }
+
+  function handleImpactCycle(originalName: string, current: string) {
+    const next = IMP_ORDER[(IMP_ORDER.indexOf(current) + 1) % IMP_ORDER.length] ?? "";
+    setImpacts(prev => ({ ...prev, [originalName]: next }));
   }
 
   function handleBulkColor(c: StatusColor | null) {
@@ -596,8 +626,8 @@ export default function AutomationDashboard() {
                 key={tr.t} tr={tr}
                 openTrack={openTrack} setOT={setOT}
                 openSys={openSys} setOS={setOS}
-                names={names} quarters={quarters} colors={colors} selected={selected}
-                onCardClick={handleCardClick} onRename={handleRename}
+                names={names} quarters={quarters} colors={colors} impacts={impacts} selected={selected}
+                onCardClick={handleCardClick} onRename={handleRename} onImpactCycle={handleImpactCycle}
                 impactFilter={impactFilter}
               />
             ))}
@@ -615,8 +645,8 @@ export default function AutomationDashboard() {
             <KanbanColumn
               key={col} col={col}
               items={kanbanData[col] ?? []}
-              names={names} colors={colors} selected={selected}
-              onCardClick={handleCardClick} onRename={handleRename}
+              names={names} colors={colors} impacts={impacts} selected={selected}
+              onCardClick={handleCardClick} onRename={handleRename} onImpactCycle={handleImpactCycle}
               onDragStart={handleDragStart}
               onDragEnter={setDragOverCol}
               onDrop={handleDrop}
