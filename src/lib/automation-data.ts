@@ -168,6 +168,7 @@ export const arch: Track[] = [
           { n: "Schema Generator: Research", s: 12, j: "MAUT-40" },
           { n: "Blog-to-Video Automation", s: 12, j: "MAUT-95" },
           { n: "Schema Generator: Product Pages", s: 11.5, j: "MAUT-41" },
+          { n: "Replace Common Ninja Widgets with custom tool", s: 12.5 },
           { n: "LinkedIn Presence & Outreach Sequences", s: 8 },
           { n: "WF3 Complex API Connections", s: 10.5, j: "MAUT-4" },
         ],
