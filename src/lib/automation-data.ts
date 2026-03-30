@@ -413,6 +413,14 @@ export const arch: Track[] = [
         ],
       },
       {
+        n: "Marketing Intelligence System", imp: "High",
+        p: "Centralizes marketing performance data and market share signals into a unified intelligence layer for cross-team reporting and decision-making.",
+        q: "Q2 2026", cap: "Ellen",
+        i: [
+          { n: "Market Share", s: 16 },
+        ],
+      },
+      {
         n: "Revenue Accounting Automation", imp: "Low",
         p: "Automates GAAP journal entries for all payment processors via DBT. Phase 1: core entries + PBI review + NetSuite export. Phase 2: Stripe fees, disputes, DIT. Eliminates 40-48 hrs of monthly manual close work.",
         q: "TBD", cap: "Ellen/Finance",
