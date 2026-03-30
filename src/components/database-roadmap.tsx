@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { PLATFORMS, DB_STYLES } from '@/lib/platform-data';
 
 const QUARTER_GROUPS = [
@@ -33,23 +33,35 @@ const unbuilt = DB_LIST.filter(d => !d.exists);
 const built    = DB_LIST.filter(d => d.exists);
 
 export default function DatabaseRoadmap() {
-  const [planned, setPlanned] = useState<Record<string, string>>({});
-  const [loaded,  setLoaded]  = useState(false);
+  const [planned,  setPlanned]  = useState<Record<string, string>>({});
+  const [dbLoaded, setDbLoaded] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showBuilt, setShowBuilt] = useState(false);
 
+  // Load from shared DB on mount
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('aqps:db_planned');
-      if (raw) setPlanned(JSON.parse(raw) as Record<string, string>);
-    } catch { /* ignore */ }
-    setLoaded(true);
+    fetch('/api/db-roadmap')
+      .then(r => r.json())
+      .then((data: { dbPlanned: Record<string, string> }) => {
+        if (Object.keys(data.dbPlanned).length) setPlanned(data.dbPlanned);
+      })
+      .catch(() => { /* silently ignore */ })
+      .finally(() => setDbLoaded(true));
   }, []);
 
+  // Save to shared DB on change (debounced 600ms)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!loaded) return;
-    localStorage.setItem('aqps:db_planned', JSON.stringify(planned));
-  }, [planned, loaded]);
+    if (!dbLoaded) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void fetch('/api/db-roadmap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dbPlanned: planned }),
+      });
+    }, 600);
+  }, [planned, dbLoaded]);
 
   const depMap = useMemo(() => {
     const map: Record<string, typeof PLATFORMS> = {};
