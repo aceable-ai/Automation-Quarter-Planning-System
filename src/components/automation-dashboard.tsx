@@ -466,28 +466,43 @@ export default function AutomationDashboard() {
   const [openTrack, setOT] = useState<string | null>(null);
   const [openSys, setOS] = useState<string | null>(null);
 
-  function load<T>(key: string, fallback: T): T {
-    if (typeof window === "undefined") return fallback;
-    try {
-      const raw = localStorage.getItem(key);
-      const parsed = JSON.parse(raw ?? "null") as T | null;
-      return parsed ?? fallback;
-    } catch { return fallback; }
-  }
-
-  const [names,    setNames]    = useState<Record<string, string>>(() => load("aqps:names", {}));
-  const [quarters, setQuarters] = useState<Record<string, string>>(() => load("aqps:quarters", {}));
-  const [colors,   setColors]   = useState<Record<string, StatusColor>>(() => load("aqps:colors", {}));
-  const [impacts,  setImpacts]  = useState<Record<string, string>>(() => load("aqps:impacts", {}));
+  const [names,    setNames]    = useState<Record<string, string>>({});
+  const [quarters, setQuarters] = useState<Record<string, string>>({});
+  const [colors,   setColors]   = useState<Record<string, StatusColor>>({});
+  const [impacts,  setImpacts]  = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [brush, setBrush] = useState<StatusColor | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [impactFilter, setImpactFilter] = useState<string>("All");
+  const [dbLoaded, setDbLoaded] = useState(false);
 
-  useEffect(() => { localStorage.setItem("aqps:names",    JSON.stringify(names));    }, [names]);
-  useEffect(() => { localStorage.setItem("aqps:quarters", JSON.stringify(quarters)); }, [quarters]);
-  useEffect(() => { localStorage.setItem("aqps:colors",   JSON.stringify(colors));   }, [colors]);
-  useEffect(() => { localStorage.setItem("aqps:impacts",  JSON.stringify(impacts));  }, [impacts]);
+  // Load shared state from DB on mount
+  useEffect(() => {
+    fetch('/api/overrides')
+      .then(r => r.json())
+      .then((data: { names: Record<string, string>; quarters: Record<string, string>; colors: Record<string, StatusColor>; impacts: Record<string, string> }) => {
+        if (Object.keys(data.names).length)    setNames(data.names);
+        if (Object.keys(data.quarters).length) setQuarters(data.quarters);
+        if (Object.keys(data.colors).length)   setColors(data.colors);
+        if (Object.keys(data.impacts).length)  setImpacts(data.impacts);
+      })
+      .catch(() => { /* silently ignore, state stays empty */ })
+      .finally(() => setDbLoaded(true));
+  }, []);
+
+  // Save shared state to DB on every change (debounced 600ms)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!dbLoaded) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void fetch('/api/overrides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ names, quarters, colors, impacts }),
+      });
+    }, 600);
+  }, [names, quarters, colors, impacts, dbLoaded]);
 
   const dragNameRef = useRef<string | null>(null);
 
