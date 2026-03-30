@@ -1,7 +1,7 @@
 'use client';
 
 import { Sidebar, SidebarContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail } from '@/components/ui/sidebar';
-import { Home, LayoutGrid, Database } from 'lucide-react';
+import { Home, LayoutGrid, Database, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -33,6 +33,14 @@ export function AppSidebar() {
               <Link href="/database-roadmap">
                 <Database className="h-5 w-5" />
                 <span>Database Roadmap</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname === '/comments'} tooltip="Comments">
+              <Link href="/comments">
+                <MessageSquare className="h-5 w-5" />
+                <span>Comments</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

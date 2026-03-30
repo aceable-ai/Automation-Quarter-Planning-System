@@ -5,6 +5,15 @@ import { arch, type Track, type Project, type Initiative } from "@/lib/automatio
 
 type StatusColor = "green" | "blue" | "red";
 
+interface Comment {
+  id: string;
+  project_name: string;
+  author: string;
+  content: string;
+  vetted: boolean;
+  created_at: string;
+}
+
 const HL = "#4f46e5";
 
 const STATUS: Record<StatusColor, { bg: string; border: string; label: string; hex: string }> = {
@@ -170,6 +179,102 @@ function InitRow({ init, tc }: { init: Initiative; tc: string }) {
   );
 }
 
+// ── Editable description ──────────────────────────────────────────────────────
+
+function EditableDesc({ value, onSave, trackColor }: { value: string; onSave: (v: string) => void; trackColor: string }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  if (editing) {
+    return (
+      <textarea
+        autoFocus
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={() => { setEditing(false); onSave(draft); }}
+        rows={3}
+        style={{
+          width: "100%", boxSizing: "border-box" as const,
+          padding: "8px 12px", fontSize: 12, lineHeight: 1.6, color: "#333",
+          borderRadius: 8, border: `1.5px solid ${trackColor}`, resize: "vertical" as const, outline: "none",
+        }}
+      />
+    );
+  }
+  return (
+    <div
+      onClick={() => { setEditing(true); setDraft(value); }}
+      title="Click to edit description"
+      style={{
+        padding: "10px 12px", background: "#fafafa", borderRadius: 8,
+        borderLeft: `3px solid ${trackColor}`, fontSize: 12, lineHeight: 1.6,
+        color: value ? "#555" : "#bbb", cursor: "text", fontStyle: value ? "normal" : "italic",
+      }}
+    >
+      {value || "Click to add description…"}
+    </div>
+  );
+}
+
+// ── Comment section ───────────────────────────────────────────────────────────
+
+function CommentSection({ comments, onAdd }: { comments: Comment[]; onAdd: (content: string, author: string) => void }) {
+  const [draft, setDraft] = useState("");
+  const [author, setAuthor] = useState(() => {
+    try { return localStorage.getItem("aqps:author") ?? ""; } catch { return ""; }
+  });
+
+  function submit() {
+    if (!draft.trim()) return;
+    const a = author.trim() || "Anonymous";
+    onAdd(draft.trim(), a);
+    try { localStorage.setItem("aqps:author", a); } catch { /* ignore */ }
+    setDraft("");
+  }
+
+  return (
+    <div style={{ marginTop: 12, padding: "10px 12px", background: "#f5f5ff", borderRadius: 8, border: "1px solid #e0e0f0" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+        Comments {comments.length > 0 && `(${comments.length})`}
+      </div>
+      {comments.length === 0 && (
+        <div style={{ fontSize: 12, color: "#bbb", fontStyle: "italic", marginBottom: 10 }}>No comments yet</div>
+      )}
+      {comments.map(c => (
+        <div key={c.id} style={{ marginBottom: 8, padding: "6px 10px", background: "#fff", borderRadius: 6, border: "1px solid #e8e8f0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{c.author}</span>
+            {c.vetted && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, background: "#dcfce7", color: "#16a34a", fontWeight: 700 }}>Vetted</span>}
+            <span style={{ fontSize: 10, color: "#bbb", marginLeft: "auto" }}>
+              {new Date(c.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: "#444", lineHeight: 1.5, whiteSpace: "pre-wrap" as const }}>{c.content}</div>
+        </div>
+      ))}
+      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+        <input
+          value={author}
+          onChange={e => setAuthor(e.target.value)}
+          placeholder="Your name"
+          style={{ width: 110, padding: "5px 8px", fontSize: 11, borderRadius: 6, border: "1px solid #ddd", outline: "none" }}
+        />
+        <textarea
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+          placeholder="Add a comment… (Enter to post)"
+          rows={2}
+          style={{ flex: 1, padding: "5px 8px", fontSize: 12, borderRadius: 6, border: "1px solid #ddd", outline: "none", resize: "none" as const }}
+        />
+        <button
+          onClick={submit}
+          style={{ padding: "0 12px", borderRadius: 6, background: "#4f46e5", color: "#fff", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer", alignSelf: "flex-end", height: 30 }}
+        >Post</button>
+      </div>
+    </div>
+  );
+}
+
 // ── List view ─────────────────────────────────────────────────────────────────
 
 function ListProjectRow({
@@ -177,16 +282,31 @@ function ListProjectRow({
   displayName, onRename, displayQ,
   status, isSelected, onCardClick,
   displayImp, onImpCycle,
+  description, onDescSave, tasks, onTaskAdd, onTaskRemove,
+  projectComments, commentsOpen, onCommentsToggle, onCommentAdd,
 }: {
   sys: Project; track: Track;
   openSys: string | null; setOS: (v: string | null) => void;
   displayName: string; onRename: (v: string) => void; displayQ: string;
   status: StatusColor | undefined; isSelected: boolean; onCardClick: () => void;
   displayImp: string; onImpCycle: () => void;
+  description: string; onDescSave: (v: string) => void;
+  tasks: Initiative[]; onTaskAdd: (name: string) => void; onTaskRemove: (name: string) => void;
+  projectComments: Comment[]; commentsOpen: boolean;
+  onCommentsToggle: () => void; onCommentAdd: (content: string, author: string) => void;
 }) {
   const sOpen = openSys === sys.n;
   const sc = status ? STATUS[status] : null;
   const imp = IMP[displayImp];
+  const [addingTask, setAddingTask] = useState(false);
+  const [taskDraft, setTaskDraft] = useState("");
+
+  function submitTask() {
+    if (!taskDraft.trim()) return;
+    onTaskAdd(taskDraft.trim());
+    setTaskDraft("");
+    setAddingTask(false);
+  }
 
   return (
     <div style={{ marginTop: 8 }}>
@@ -221,7 +341,7 @@ function ListProjectRow({
             value={displayName} onSave={onRename}
             style={{ fontSize: 13, fontWeight: 600, color: isSelected ? HL : "#222" }}
           />
-          {sys.i.length > 0 && <span style={{ fontSize: 11, color: "#999" }}>({sys.i.length})</span>}
+          {tasks.length > 0 && <span style={{ fontSize: 11, color: "#999" }}>({tasks.length})</span>}
           <span
             onClick={e => { e.stopPropagation(); onImpCycle(); }}
             title="Click to change impact"
@@ -233,21 +353,74 @@ function ListProjectRow({
               ),
             }}
           >{displayImp || "+ impact"}</span>
+          {/* Comment button */}
+          <span
+            onClick={e => { e.stopPropagation(); onCommentsToggle(); }}
+            title="Comments"
+            style={{
+              fontSize: 10, padding: "2px 7px", borderRadius: 4, cursor: "pointer", flexShrink: 0,
+              background: projectComments.length > 0 ? "#ede9fe" : "#f5f5f5",
+              color: projectComments.length > 0 ? "#4f46e5" : "#bbb",
+              border: `1px solid ${projectComments.length > 0 ? "#c4b5fd" : "#e5e5e5"}`,
+              fontWeight: projectComments.length > 0 ? 600 : 400,
+            }}
+          >💬 {projectComments.length > 0 ? projectComments.length : "comment"}</span>
           <span style={{ marginLeft: "auto", fontSize: 11, flexShrink: 0, color: sc ? sc.border : "#999", fontWeight: sc ? 600 : 400 }}>
             {displayQ}
           </span>
         </div>
         <div style={{ fontSize: 11, color: "#aaa", marginTop: 2, marginLeft: 23 }}>Captain: {sys.cap}</div>
       </div>
+
       {sOpen && (
         <div style={{ marginLeft: 23, marginTop: 6 }}>
-          <div style={{ padding: "10px 12px", marginBottom: 8, background: "#fafafa", borderRadius: 8, borderLeft: `3px solid ${track.c}`, fontSize: 12, lineHeight: 1.6, color: "#555" }}>
-            {sys.p}
+          {/* Editable description */}
+          <div style={{ marginBottom: 8 }}>
+            <EditableDesc value={description} onSave={onDescSave} trackColor={track.c} />
           </div>
-          {sys.i.length > 0
-            ? sys.i.map((init, i) => <InitRow key={i} init={init} tc={track.c} />)
-            : <div style={{ padding: "8px 12px", fontSize: 12, color: "#bbb", fontStyle: "italic" }}>Project-level work only — no tasks mapped yet</div>
+
+          {/* Tasks with remove buttons */}
+          {tasks.length > 0
+            ? tasks.map((init, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ flex: 1 }}><InitRow init={init} tc={track.c} /></div>
+                  <button
+                    onClick={() => onTaskRemove(init.n)}
+                    title="Remove task"
+                    style={{ fontSize: 11, color: "#ccc", background: "none", border: "none", cursor: "pointer", padding: "0 4px", flexShrink: 0, lineHeight: 1 }}
+                  >×</button>
+                </div>
+              ))
+            : <div style={{ padding: "8px 12px", fontSize: 12, color: "#bbb", fontStyle: "italic" }}>No tasks yet — add one below</div>
           }
+
+          {/* Add task */}
+          {addingTask ? (
+            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+              <input
+                autoFocus
+                value={taskDraft}
+                onChange={e => setTaskDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") submitTask(); if (e.key === "Escape") { setAddingTask(false); setTaskDraft(""); } }}
+                placeholder="Task name (Enter to add)"
+                style={{ flex: 1, padding: "4px 8px", fontSize: 12, borderRadius: 6, border: "1px solid #ddd", outline: "none" }}
+              />
+              <button onClick={submitTask} style={{ padding: "4px 10px", fontSize: 11, borderRadius: 6, background: track.c, color: "#fff", border: "none", cursor: "pointer" }}>Add</button>
+              <button onClick={() => { setAddingTask(false); setTaskDraft(""); }} style={{ fontSize: 11, background: "none", border: "none", cursor: "pointer", color: "#aaa" }}>Cancel</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAddingTask(true)}
+              style={{ marginTop: 6, fontSize: 11, color: track.c, background: "none", border: `1px dashed ${track.c}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", opacity: 0.7 }}
+            >＋ Add task</button>
+          )}
+        </div>
+      )}
+
+      {/* Inline comments (shown regardless of sOpen) */}
+      {commentsOpen && (
+        <div style={{ marginLeft: 23, marginTop: 6 }}>
+          <CommentSection comments={projectComments} onAdd={onCommentAdd} />
         </div>
       )}
     </div>
@@ -257,20 +430,26 @@ function ListProjectRow({
 function ListTrackRow({
   tr, openTrack, setOT, openSys, setOS,
   names, quarters, colors, impacts, selected, onCardClick, onRename, onImpactCycle, impactFilter,
+  descriptions, taskOverrides, comments, commentsOpen,
+  onCommentsToggle, onCommentAdd, onDescSave, onTaskAdd, onTaskRemove,
 }: {
   tr: Track; openTrack: string | null; setOT: (v: string | null) => void;
   openSys: string | null; setOS: (v: string | null) => void;
   names: Record<string, string>; quarters: Record<string, string>;
   colors: Record<string, StatusColor>; impacts: Record<string, string>; selected: Set<string>;
   onCardClick: (n: string) => void; onRename: (n: string, v: string) => void;
-  onImpactCycle: (n: string, cur: string) => void;
-  impactFilter: string;
+  onImpactCycle: (n: string, cur: string) => void; impactFilter: string;
+  descriptions: Record<string, string>; taskOverrides: Record<string, Initiative[]>;
+  comments: Comment[]; commentsOpen: Record<string, boolean>;
+  onCommentsToggle: (n: string) => void; onCommentAdd: (pn: string, content: string, author: string) => void;
+  onDescSave: (n: string, v: string) => void;
+  onTaskAdd: (n: string, name: string) => void; onTaskRemove: (n: string, taskName: string) => void;
 }) {
   const isOpen = openTrack === tr.t;
   const visibleSystems = impactFilter === "All"
     ? tr.s
     : tr.s.filter(s => (impacts[s.n] ?? s.imp) === impactFilter);
-  const ic = tr.s.reduce((a, s) => a + s.i.length, 0);
+  const ic = tr.s.reduce((a, s) => a + (taskOverrides[s.n] ?? s.i).length, 0);
 
   if (visibleSystems.length === 0) return null;
 
@@ -305,6 +484,15 @@ function ListTrackRow({
               onCardClick={() => onCardClick(sys.n)}
               displayImp={impacts[sys.n] ?? sys.imp}
               onImpCycle={() => onImpactCycle(sys.n, impacts[sys.n] ?? sys.imp)}
+              description={descriptions[sys.n] ?? sys.p}
+              onDescSave={v => onDescSave(sys.n, v)}
+              tasks={taskOverrides[sys.n] ?? sys.i}
+              onTaskAdd={name => onTaskAdd(sys.n, name)}
+              onTaskRemove={taskName => onTaskRemove(sys.n, taskName)}
+              projectComments={comments.filter(c => c.project_name === sys.n)}
+              commentsOpen={commentsOpen[sys.n] ?? false}
+              onCommentsToggle={() => onCommentsToggle(sys.n)}
+              onCommentAdd={(content, author) => onCommentAdd(sys.n, content, author)}
             />
           ))}
         </div>
@@ -318,14 +506,17 @@ function ListTrackRow({
 function KanbanCard({
   sys, track, displayName, onRename,
   status, isSelected, onCardClick, onDragStart,
-  displayImp, onImpCycle,
+  displayImp, onImpCycle, tasks,
+  projectComments, commentsOpen, onCommentsToggle, onCommentAdd,
 }: {
   sys: Project; track: Track;
   displayName: string; onRename: (v: string) => void;
   status: StatusColor | undefined; isSelected: boolean;
-  onCardClick: () => void;
-  onDragStart: (e: React.DragEvent) => void;
+  onCardClick: () => void; onDragStart: (e: React.DragEvent) => void;
   displayImp: string; onImpCycle: () => void;
+  tasks: Initiative[];
+  projectComments: Comment[]; commentsOpen: boolean;
+  onCommentsToggle: () => void; onCommentAdd: (content: string, author: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const sc = status ? STATUS[status] : null;
@@ -375,9 +566,19 @@ function KanbanCard({
             ),
           }}
         >{displayImp || "+ impact"}</span>
-        <span style={{ fontSize: 10, color: "#aaa" }}>{sys.i.length} tasks</span>
+        <span style={{ fontSize: 10, color: "#aaa" }}>{tasks.length} tasks</span>
+        <span
+          onClick={e => { e.stopPropagation(); onCommentsToggle(); }}
+          title="Comments"
+          style={{
+            fontSize: 9, padding: "1px 6px", borderRadius: 3, cursor: "pointer", flexShrink: 0,
+            background: projectComments.length > 0 ? "#ede9fe" : "#f5f5f5",
+            color: projectComments.length > 0 ? "#4f46e5" : "#bbb",
+            border: `1px solid ${projectComments.length > 0 ? "#c4b5fd" : "#e5e5e5"}`,
+          }}
+        >💬 {projectComments.length > 0 ? projectComments.length : ""}</span>
         <span style={{ fontSize: 10, color: "#bbb", marginLeft: "auto" }}>{sys.cap}</span>
-        {sys.i.length > 0 && (
+        {tasks.length > 0 && (
           <span
             onClick={e => { e.stopPropagation(); setExpanded(x => !x); }}
             style={{ fontSize: 9, color: "#bbb", cursor: "pointer" }}
@@ -386,13 +587,18 @@ function KanbanCard({
       </div>
       {expanded && (
         <div style={{ marginTop: 8, borderTop: "1px solid #eee", paddingTop: 6 }}>
-          {sys.i.map((task, i) => (
+          {tasks.map((task, i) => (
             <div key={i} style={{ fontSize: 11, color: "#555", padding: "3px 0", display: "flex", gap: 6 }}>
               <span style={{ color: "#ccc" }}>•</span>
               <span style={{ flex: 1 }}>{task.n}</span>
               {task.s > 0 && <span style={{ color: "#bbb", flexShrink: 0 }}>{task.s}</span>}
             </div>
           ))}
+        </div>
+      )}
+      {commentsOpen && (
+        <div onClick={e => e.stopPropagation()} style={{ marginTop: 8, cursor: "default" }}>
+          <CommentSection comments={projectComments} onAdd={onCommentAdd} />
         </div>
       )}
     </div>
@@ -402,6 +608,7 @@ function KanbanCard({
 function KanbanColumn({
   col, items, names, colors, impacts, selected,
   onCardClick, onRename, onDragStart, onDragEnter, onDrop, isOver, onImpactCycle,
+  taskOverrides, comments, commentsOpen, onCommentsToggle, onCommentAdd,
 }: {
   col: string;
   items: { sys: Project; track: Track }[];
@@ -413,6 +620,9 @@ function KanbanColumn({
   onDrop: (e: React.DragEvent, col: string) => void;
   isOver: boolean;
   onImpactCycle: (n: string, cur: string) => void;
+  taskOverrides: Record<string, Initiative[]>;
+  comments: Comment[]; commentsOpen: Record<string, boolean>;
+  onCommentsToggle: (n: string) => void; onCommentAdd: (pn: string, content: string, author: string) => void;
 }) {
   return (
     <div
@@ -441,6 +651,11 @@ function KanbanColumn({
             onDragStart={e => onDragStart(e, sys.n)}
             displayImp={impacts[sys.n] ?? sys.imp}
             onImpCycle={() => onImpactCycle(sys.n, impacts[sys.n] ?? sys.imp)}
+            tasks={taskOverrides[sys.n] ?? sys.i}
+            projectComments={comments.filter(c => c.project_name === sys.n)}
+            commentsOpen={commentsOpen[sys.n] ?? false}
+            onCommentsToggle={() => onCommentsToggle(sys.n)}
+            onCommentAdd={(content, author) => onCommentAdd(sys.n, content, author)}
           />
         ))}
         {items.length === 0 && (
@@ -466,43 +681,66 @@ export default function AutomationDashboard() {
   const [openTrack, setOT] = useState<string | null>(null);
   const [openSys, setOS] = useState<string | null>(null);
 
-  const [names,    setNames]    = useState<Record<string, string>>({});
-  const [quarters, setQuarters] = useState<Record<string, string>>({});
-  const [colors,   setColors]   = useState<Record<string, StatusColor>>({});
-  const [impacts,  setImpacts]  = useState<Record<string, string>>({});
+  const [names,        setNames]        = useState<Record<string, string>>({});
+  const [quarters,     setQuarters]     = useState<Record<string, string>>({});
+  const [colors,       setColors]       = useState<Record<string, StatusColor>>({});
+  const [impacts,      setImpacts]      = useState<Record<string, string>>({});
+  const [descriptions, setDescriptions] = useState<Record<string, string>>({});
+  const [taskOverrides, setTaskOverrides] = useState<Record<string, Initiative[]>>({});
+  const [comments,     setComments]     = useState<Comment[]>([]);
+  const [commentsOpen, setCommentsOpen] = useState<Record<string, boolean>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [brush, setBrush] = useState<StatusColor | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [impactFilter, setImpactFilter] = useState<string>("All");
   const [dbLoaded, setDbLoaded] = useState(false);
 
-  // Load shared state from DB on mount
+  // Load all shared state from DB on mount
   useEffect(() => {
-    fetch('/api/overrides')
-      .then(r => r.json())
-      .then((data: { names: Record<string, string>; quarters: Record<string, string>; colors: Record<string, StatusColor>; impacts: Record<string, string> }) => {
-        if (Object.keys(data.names).length)    setNames(data.names);
-        if (Object.keys(data.quarters).length) setQuarters(data.quarters);
-        if (Object.keys(data.colors).length)   setColors(data.colors);
-        if (Object.keys(data.impacts).length)  setImpacts(data.impacts);
-      })
-      .catch(() => { /* silently ignore, state stays empty */ })
-      .finally(() => setDbLoaded(true));
+    Promise.all([
+      fetch('/api/overrides').then(r => r.json()) as Promise<{ names: Record<string,string>; quarters: Record<string,string>; colors: Record<string,StatusColor>; impacts: Record<string,string> }>,
+      fetch('/api/descriptions').then(r => r.json()) as Promise<{ descriptions: Record<string,string> }>,
+      fetch('/api/task-overrides').then(r => r.json()) as Promise<{ taskOverrides: Record<string,Initiative[]> }>,
+      fetch('/api/comments').then(r => r.json()) as Promise<Comment[]>,
+    ]).then(([ov, desc, tasks, cmts]) => {
+      if (Object.keys(ov.names).length)    setNames(ov.names);
+      if (Object.keys(ov.quarters).length) setQuarters(ov.quarters);
+      if (Object.keys(ov.colors).length)   setColors(ov.colors);
+      if (Object.keys(ov.impacts).length)  setImpacts(ov.impacts);
+      if (Object.keys(desc.descriptions).length) setDescriptions(desc.descriptions);
+      if (Object.keys(tasks.taskOverrides).length) setTaskOverrides(tasks.taskOverrides);
+      setComments(cmts);
+    }).catch(() => { /* silently ignore */ }).finally(() => setDbLoaded(true));
   }, []);
 
-  // Save shared state to DB on every change (debounced 600ms)
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Debounced saves
+  const saveTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const descTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tasksTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!dbLoaded) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      void fetch('/api/overrides', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ names, quarters, colors, impacts }),
-      });
+      void fetch('/api/overrides', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ names, quarters, colors, impacts }) });
     }, 600);
   }, [names, quarters, colors, impacts, dbLoaded]);
+
+  useEffect(() => {
+    if (!dbLoaded) return;
+    if (descTimer.current) clearTimeout(descTimer.current);
+    descTimer.current = setTimeout(() => {
+      void fetch('/api/descriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ descriptions }) });
+    }, 600);
+  }, [descriptions, dbLoaded]);
+
+  useEffect(() => {
+    if (!dbLoaded) return;
+    if (tasksTimer.current) clearTimeout(tasksTimer.current);
+    tasksTimer.current = setTimeout(() => {
+      void fetch('/api/task-overrides', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskOverrides }) });
+    }, 600);
+  }, [taskOverrides, dbLoaded]);
 
   const dragNameRef = useRef<string | null>(null);
 
@@ -538,6 +776,38 @@ export default function AutomationDashboard() {
   function handleImpactCycle(originalName: string, current: string) {
     const next = IMP_ORDER[(IMP_ORDER.indexOf(current) + 1) % IMP_ORDER.length] ?? "";
     setImpacts(prev => ({ ...prev, [originalName]: next }));
+  }
+
+  function handleDescSave(projectName: string, value: string) {
+    setDescriptions(prev => ({ ...prev, [projectName]: value }));
+  }
+
+  function handleTaskAdd(projectName: string, taskName: string) {
+    setTaskOverrides(prev => {
+      const base = prev[projectName] ?? arch.flatMap(tr => tr.s).find(s => s.n === projectName)?.i ?? [];
+      return { ...prev, [projectName]: [...base, { n: taskName, s: 16 }] };
+    });
+  }
+
+  function handleTaskRemove(projectName: string, taskName: string) {
+    setTaskOverrides(prev => {
+      const base = prev[projectName] ?? arch.flatMap(tr => tr.s).find(s => s.n === projectName)?.i ?? [];
+      return { ...prev, [projectName]: base.filter(t => t.n !== taskName) };
+    });
+  }
+
+  function handleCommentsToggle(projectName: string) {
+    setCommentsOpen(prev => ({ ...prev, [projectName]: !(prev[projectName] ?? false) }));
+  }
+
+  async function handleCommentAdd(projectName: string, content: string, author: string) {
+    const res = await fetch('/api/comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectName, content, author }),
+    });
+    const newComment = await res.json() as Comment;
+    setComments(prev => [newComment, ...prev]);
   }
 
   function handleBulkColor(c: StatusColor | null) {
@@ -658,6 +928,11 @@ export default function AutomationDashboard() {
                 names={names} quarters={quarters} colors={colors} impacts={impacts} selected={selected}
                 onCardClick={handleCardClick} onRename={handleRename} onImpactCycle={handleImpactCycle}
                 impactFilter={impactFilter}
+                descriptions={descriptions} taskOverrides={taskOverrides}
+                comments={comments} commentsOpen={commentsOpen}
+                onCommentsToggle={handleCommentsToggle}
+                onCommentAdd={(pn, content, author) => { void handleCommentAdd(pn, content, author); }}
+                onDescSave={handleDescSave} onTaskAdd={handleTaskAdd} onTaskRemove={handleTaskRemove}
               />
             ))}
           </div>
@@ -676,10 +951,12 @@ export default function AutomationDashboard() {
               items={kanbanData[col] ?? []}
               names={names} colors={colors} impacts={impacts} selected={selected}
               onCardClick={handleCardClick} onRename={handleRename} onImpactCycle={handleImpactCycle}
-              onDragStart={handleDragStart}
-              onDragEnter={setDragOverCol}
-              onDrop={handleDrop}
+              onDragStart={handleDragStart} onDragEnter={setDragOverCol} onDrop={handleDrop}
               isOver={dragOverCol === col}
+              taskOverrides={taskOverrides}
+              comments={comments} commentsOpen={commentsOpen}
+              onCommentsToggle={handleCommentsToggle}
+              onCommentAdd={(pn, content, author) => { void handleCommentAdd(pn, content, author); }}
             />
           ))}
         </div>
