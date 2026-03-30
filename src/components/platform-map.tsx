@@ -18,14 +18,29 @@ function LegendRow({ color, label, detail }: { color: string; label: string; det
   );
 }
 
+const DB_FILTERS = [
+  { label: 'All databases', cls: 'all' },
+  { label: 'DataMart / Power BI', cls: 'datamart' },
+  { label: 'Marketing intel', cls: 'marketing' },
+  { label: 'Market share intel', cls: 'marketshare' },
+  { label: 'Mongo', cls: 'mongo' },
+  { label: 'B2B intel', cls: 'b2b' },
+  { label: 'Design intel', cls: 'design' },
+  { label: 'Regulatory requirements', cls: 'regulatory' },
+  { label: 'Internal / no DB', cls: 'internal' },
+];
+
 export default function PlatformMap() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
+  const [activeDb, setActiveDb] = useState('all');
 
   const filtered = useMemo(() => {
     return PLATFORMS.filter((p) => {
       const matchesFilter =
         activeFilter === 'all' || p.name.includes(activeFilter);
+      const matchesDb =
+        activeDb === 'all' || p.dbs.some((d) => d.cls === activeDb);
       const q = search.toLowerCase();
       const matchesSearch =
         !q ||
@@ -33,9 +48,9 @@ export default function PlatformMap() {
         p.user.toLowerCase().includes(q) ||
         p.dbs.some((d) => d.label.toLowerCase().includes(q)) ||
         p.pages.some((pg) => pg.toLowerCase().includes(q));
-      return matchesFilter && matchesSearch;
+      return matchesFilter && matchesDb && matchesSearch;
     });
-  }, [search, activeFilter]);
+  }, [search, activeFilter, activeDb]);
 
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', background: '#F7F7F5', minHeight: '100vh', padding: '0' }}>
@@ -72,7 +87,7 @@ export default function PlatformMap() {
           />
         </div>
 
-        {/* Filter bar */}
+        {/* Platform filter bar */}
         <div style={{ display: 'flex', gap: 6, marginTop: 16, flexWrap: 'wrap' }}>
           {FILTERS.map((f) => (
             <button
@@ -93,6 +108,44 @@ export default function PlatformMap() {
               {f.label}
             </button>
           ))}
+        </div>
+
+        {/* Database filter bar */}
+        <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#9B9B97', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 2 }}>
+            Database
+          </span>
+          {DB_FILTERS.map((f) => {
+            const s = f.cls === 'all' ? null : (DB_STYLES[f.cls] ?? null);
+            const isActive = activeDb === f.cls;
+            return (
+              <button
+                key={f.cls}
+                onClick={() => setActiveDb(f.cls)}
+                style={{
+                  padding: '4px 11px',
+                  borderRadius: 20,
+                  fontSize: 11.5,
+                  fontWeight: isActive ? 600 : 400,
+                  cursor: 'pointer',
+                  transition: 'all 0.12s',
+                  border: isActive
+                    ? `1.5px solid ${s ? s.color : '#1A1A18'}`
+                    : `1px solid ${s ? s.border : '#DDDDD8'}`,
+                  background: isActive
+                    ? (s ? s.bg : '#1A1A18')
+                    : '#fff',
+                  color: isActive
+                    ? (s ? s.color : '#fff')
+                    : (s ? s.color : '#444441'),
+                  outline: isActive && s ? `2px solid ${s.border}` : 'none',
+                  outlineOffset: 1,
+                }}
+              >
+                {f.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -210,7 +263,7 @@ export default function PlatformMap() {
       }}>
         {filtered.length === 0 && (
           <p style={{ color: '#888', gridColumn: '1/-1', textAlign: 'center', padding: '60px 0' }}>
-            No platforms match your search.
+            No platforms match your filters.
           </p>
         )}
         {filtered.map((platform) => (
