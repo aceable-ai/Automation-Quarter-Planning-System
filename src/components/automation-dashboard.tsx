@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { arch, type Track, type Project, type Initiative } from "@/lib/automation-data";
 
 type StatusColor = "green" | "blue" | "red";
@@ -466,14 +466,28 @@ export default function AutomationDashboard() {
   const [openTrack, setOT] = useState<string | null>(null);
   const [openSys, setOS] = useState<string | null>(null);
 
-  const [names, setNames] = useState<Record<string, string>>({});
-  const [quarters, setQuarters] = useState<Record<string, string>>({});
-  const [colors, setColors] = useState<Record<string, StatusColor>>({});
-  const [impacts, setImpacts] = useState<Record<string, string>>({});
+  function load<T>(key: string, fallback: T): T {
+    if (typeof window === "undefined") return fallback;
+    try {
+      const raw = localStorage.getItem(key);
+      const parsed = JSON.parse(raw ?? "null") as T | null;
+      return parsed ?? fallback;
+    } catch { return fallback; }
+  }
+
+  const [names,    setNames]    = useState<Record<string, string>>(() => load("aqps:names", {}));
+  const [quarters, setQuarters] = useState<Record<string, string>>(() => load("aqps:quarters", {}));
+  const [colors,   setColors]   = useState<Record<string, StatusColor>>(() => load("aqps:colors", {}));
+  const [impacts,  setImpacts]  = useState<Record<string, string>>(() => load("aqps:impacts", {}));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [brush, setBrush] = useState<StatusColor | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [impactFilter, setImpactFilter] = useState<string>("All");
+
+  useEffect(() => { localStorage.setItem("aqps:names",    JSON.stringify(names));    }, [names]);
+  useEffect(() => { localStorage.setItem("aqps:quarters", JSON.stringify(quarters)); }, [quarters]);
+  useEffect(() => { localStorage.setItem("aqps:colors",   JSON.stringify(colors));   }, [colors]);
+  useEffect(() => { localStorage.setItem("aqps:impacts",  JSON.stringify(impacts));  }, [impacts]);
 
   const dragNameRef = useRef<string | null>(null);
 
