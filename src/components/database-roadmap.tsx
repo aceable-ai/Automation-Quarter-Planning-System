@@ -3,7 +3,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { PLATFORMS, DB_STYLES } from '@/lib/platform-data';
 
-const QUARTERS = ['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', '2027+'];
+const QUARTER_GROUPS = [
+  { label: 'Q1 2026', periods: ['Q1 Wk 1–6', 'Q1 Wk 7–12'] },
+  { label: 'Q2 2026', periods: ['Q2 Wk 1–6', 'Q2 Wk 7–12'] },
+  { label: 'Q3 2026', periods: ['Q3 Wk 1–6', 'Q3 Wk 7–12'] },
+  { label: 'Q4 2026', periods: ['Q4 Wk 1–6', 'Q4 Wk 7–12'] },
+];
+const PERIODS = [...QUARTER_GROUPS.flatMap(g => g.periods), '2027+'];
+const GRID_COLS = '240px repeat(9, 1fr)';
+
+function periodShortLabel(p: string): string {
+  if (p === '2027+') return '2027+';
+  const parts = p.split(' ');
+  return parts.slice(1).join(' '); // "Wk 1–6" or "Wk 7–12"
+}
 
 const DB_LIST = [
   { cls: 'marketing',   label: 'Marketing intel',         exists: false },
@@ -98,14 +111,27 @@ export default function DatabaseRoadmap() {
         {/* Gantt table */}
         <div style={{ background: '#fff', border: '1px solid #E5E4E0', borderRadius: 12, overflow: 'hidden' }}>
 
-          {/* Column headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: '280px repeat(5, 1fr)', background: '#FAFAF8', borderBottom: '1px solid #E5E4E0' }}>
-            <div style={{ padding: '10px 20px', fontSize: 11, fontWeight: 700, color: '#888884', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {/* Column headers — two rows */}
+          {/* Row 1: Quarter group labels */}
+          <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, background: '#FAFAF8', borderBottom: '1px solid #DDDDD8' }}>
+            <div style={{ padding: '8px 20px', fontSize: 11, fontWeight: 700, color: '#888884', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'flex-end' }}>
               Database
             </div>
-            {QUARTERS.map(q => (
-              <div key={q} style={{ padding: '10px 8px', fontSize: 11, fontWeight: 700, color: '#888884', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center', borderLeft: '1px solid #E5E4E0' }}>
-                {q}
+            {QUARTER_GROUPS.map(g => (
+              <div key={g.label} style={{ gridColumn: 'span 2', padding: '8px 10px', fontSize: 11, fontWeight: 700, color: '#444441', textAlign: 'center', borderLeft: '1px solid #E5E4E0', letterSpacing: '0.01em' }}>
+                {g.label}
+              </div>
+            ))}
+            <div style={{ padding: '8px 8px', fontSize: 11, fontWeight: 700, color: '#444441', textAlign: 'center', borderLeft: '1px solid #E5E4E0' }}>
+              2027+
+            </div>
+          </div>
+          {/* Row 2: Period subheaders */}
+          <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, background: '#FAFAF8', borderBottom: '1px solid #E5E4E0' }}>
+            <div />
+            {PERIODS.map(p => (
+              <div key={p} style={{ padding: '5px 8px', fontSize: 10, fontWeight: 600, color: '#9B9B97', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center', borderLeft: '1px solid #F0EFEB' }}>
+                {periodShortLabel(p)}
               </div>
             ))}
           </div>
@@ -127,7 +153,7 @@ export default function DatabaseRoadmap() {
 
             return (
               <div key={db.cls} style={{ borderBottom: isLast && !showBuilt ? 'none' : '1px solid #F0EFEB' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '280px repeat(5, 1fr)', alignItems: 'stretch' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, alignItems: 'stretch' }}>
 
                   {/* Info cell */}
                   <div
@@ -151,8 +177,8 @@ export default function DatabaseRoadmap() {
                     )}
                   </div>
 
-                  {/* Quarter cells */}
-                  {QUARTERS.map(q => {
+                  {/* Period cells */}
+                  {PERIODS.map(q => {
                     const isSel = plannedQ === q;
                     return (
                       <div
@@ -234,7 +260,7 @@ export default function DatabaseRoadmap() {
 
             return (
               <div key={db.cls} style={{ borderBottom: idx < built.length - 1 ? '1px solid #F0EFEB' : 'none' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', alignItems: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', alignItems: 'center' }}>
                   <div
                     onClick={() => setExpanded(isExp ? null : db.cls)}
                     style={{ padding: '14px 20px', borderRight: '1px solid #F0EFEB', cursor: deps.length > 0 ? 'pointer' : 'default' }}
