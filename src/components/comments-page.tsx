@@ -16,6 +16,8 @@ export default function CommentsPage() {
   const [loading, setLoading] = useState(true);
   const [filterProject, setFilterProject] = useState('All');
   const [filterVetted, setFilterVetted] = useState<'all' | 'vetted' | 'unvetted'>('all');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
 
   useEffect(() => {
     fetch('/api/comments')
@@ -41,6 +43,24 @@ export default function CommentsPage() {
     const res = await fetch(`/api/comments/${id}`, { method: 'PATCH' });
     const updated = await res.json() as Comment;
     setComments(prev => prev.map(c => c.id === id ? updated : c));
+  }
+
+  function startEdit(c: Comment) {
+    setEditingId(c.id);
+    setEditDraft(c.content);
+  }
+
+  async function saveEdit(id: string) {
+    const trimmed = editDraft.trim();
+    if (!trimmed) return;
+    const res = await fetch(`/api/comments/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: trimmed }),
+    });
+    const updated = await res.json() as Comment;
+    setComments(prev => prev.map(c => c.id === id ? updated : c));
+    setEditingId(null);
   }
 
   async function deleteComment(id: string) {
@@ -140,6 +160,14 @@ export default function CommentsPage() {
                   >
                     {c.vetted ? '↩ Unvet' : '✓ Vet'}
                   </button>
+                  {editingId !== c.id && (
+                    <button
+                      onClick={() => startEdit(c)}
+                      style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid #DDDDD8', background: '#fff', color: '#444441', fontWeight: 600 }}
+                    >
+                      Edit
+                    </button>
+                  )}
                   <button
                     onClick={() => void deleteComment(c.id)}
                     style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontWeight: 600 }}
@@ -150,9 +178,44 @@ export default function CommentsPage() {
               </div>
 
               {/* Comment body */}
-              <div style={{ fontSize: 13, color: '#3A3A37', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                {c.content}
-              </div>
+              {editingId === c.id ? (
+                <div style={{ marginTop: 4 }}>
+                  <textarea
+                    autoFocus
+                    value={editDraft}
+                    onChange={e => setEditDraft(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') setEditingId(null);
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void saveEdit(c.id);
+                    }}
+                    style={{
+                      width: '100%', minHeight: 80, padding: '8px 10px', fontSize: 13,
+                      color: '#3A3A37', lineHeight: 1.6, border: '1.5px solid #4f46e5',
+                      borderRadius: 6, outline: 'none', resize: 'vertical',
+                      fontFamily: 'inherit', boxSizing: 'border-box', background: '#fafafe',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                    <button
+                      onClick={() => void saveEdit(c.id)}
+                      style={{ padding: '5px 14px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1.5px solid #4f46e5', background: '#4f46e5', color: '#fff' }}
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      style={{ padding: '5px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid #DDDDD8', background: '#fff', color: '#666' }}
+                    >
+                      Cancel
+                    </button>
+                    <span style={{ fontSize: 11, color: '#aaa', alignSelf: 'center' }}>⌘↵ to save</span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: 13, color: '#3A3A37', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                  {c.content}
+                </div>
+              )}
             </div>
           ))}
         </div>

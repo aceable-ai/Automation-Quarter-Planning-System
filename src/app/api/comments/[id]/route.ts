@@ -24,6 +24,24 @@ export async function PATCH(_: Request, { params }: { params: Promise<{ id: stri
   }
 }
 
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const sql = getClient();
+    const { id } = await params;
+    const { content } = (await req.json()) as { content: string };
+    const rows = await sql`
+      UPDATE project_comments
+      SET content = ${content}
+      WHERE id = ${id}::uuid
+      RETURNING id, project_name, author, content, vetted, created_at
+    `;
+    return NextResponse.json(rows[0]);
+  } catch (err) {
+    console.error('[comments PUT]', err);
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
+}
+
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const sql = getClient();
