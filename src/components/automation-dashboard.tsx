@@ -217,11 +217,13 @@ function EditableDesc({ value, onSave, trackColor }: { value: string; onSave: (v
 
 // ── Comment section ───────────────────────────────────────────────────────────
 
-function CommentSection({ comments, onAdd }: { comments: Comment[]; onAdd: (content: string, author: string) => void }) {
+function CommentSection({ comments, onAdd, onEdit }: { comments: Comment[]; onAdd: (content: string, author: string) => void; onEdit: (id: string, content: string) => void }) {
   const [draft, setDraft] = useState("");
   const [author, setAuthor] = useState(() => {
     try { return localStorage.getItem("aqps:author") ?? ""; } catch { return ""; }
   });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
 
   function submit() {
     if (!draft.trim()) return;
@@ -229,6 +231,18 @@ function CommentSection({ comments, onAdd }: { comments: Comment[]; onAdd: (cont
     onAdd(draft.trim(), a);
     try { localStorage.setItem("aqps:author", a); } catch { /* ignore */ }
     setDraft("");
+  }
+
+  function startEdit(c: Comment) {
+    setEditingId(c.id);
+    setEditDraft(c.content);
+  }
+
+  function saveEdit(id: string) {
+    const trimmed = editDraft.trim();
+    if (!trimmed) return;
+    onEdit(id, trimmed);
+    setEditingId(null);
   }
 
   return (
@@ -247,8 +261,35 @@ function CommentSection({ comments, onAdd }: { comments: Comment[]; onAdd: (cont
             <span style={{ fontSize: 10, color: "#bbb", marginLeft: "auto" }}>
               {new Date(c.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
             </span>
+            {editingId !== c.id && (
+              <span
+                onClick={() => startEdit(c)}
+                title="Edit comment"
+                style={{ fontSize: 10, color: "#aaa", cursor: "pointer", marginLeft: 4, padding: "1px 6px", borderRadius: 3, border: "1px solid #e8e8f0" }}
+              >edit</span>
+            )}
           </div>
-          <div style={{ fontSize: 12, color: "#444", lineHeight: 1.5, whiteSpace: "pre-wrap" as const }}>{c.content}</div>
+          {editingId === c.id ? (
+            <div>
+              <textarea
+                autoFocus
+                value={editDraft}
+                onChange={e => setEditDraft(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Escape") setEditingId(null);
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveEdit(c.id);
+                }}
+                rows={3}
+                style={{ width: "100%", padding: "5px 8px", fontSize: 12, borderRadius: 6, border: "1.5px solid #4f46e5", outline: "none", resize: "none" as const, fontFamily: "inherit", boxSizing: "border-box" as const }}
+              />
+              <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                <button onClick={() => saveEdit(c.id)} style={{ padding: "3px 10px", borderRadius: 5, fontSize: 11, fontWeight: 600, background: "#4f46e5", color: "#fff", border: "none", cursor: "pointer" }}>Save</button>
+                <button onClick={() => setEditingId(null)} style={{ padding: "3px 8px", borderRadius: 5, fontSize: 11, background: "#fff", color: "#666", border: "1px solid #ddd", cursor: "pointer" }}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: "#444", lineHeight: 1.5, whiteSpace: "pre-wrap" as const }}>{c.content}</div>
+          )}
         </div>
       ))}
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
@@ -283,7 +324,7 @@ function ListProjectRow({
   status, isSelected, onCardClick,
   displayImp, onImpCycle,
   description, onDescSave, tasks, onTaskAdd, onTaskRemove,
-  projectComments, commentsOpen, onCommentsToggle, onCommentAdd,
+  projectComments, commentsOpen, onCommentsToggle, onCommentAdd, onCommentEdit,
 }: {
   sys: Project; track: Track;
   openSys: string | null; setOS: (v: string | null) => void;
@@ -294,6 +335,7 @@ function ListProjectRow({
   tasks: Initiative[]; onTaskAdd: (name: string) => void; onTaskRemove: (name: string) => void;
   projectComments: Comment[]; commentsOpen: boolean;
   onCommentsToggle: () => void; onCommentAdd: (content: string, author: string) => void;
+  onCommentEdit: (id: string, content: string) => void;
 }) {
   const sOpen = openSys === sys.n;
   const sc = status ? STATUS[status] : null;
@@ -420,7 +462,7 @@ function ListProjectRow({
       {/* Inline comments (shown regardless of sOpen) */}
       {commentsOpen && (
         <div style={{ marginLeft: 23, marginTop: 6 }}>
-          <CommentSection comments={projectComments} onAdd={onCommentAdd} />
+          <CommentSection comments={projectComments} onAdd={onCommentAdd} onEdit={onCommentEdit} />
         </div>
       )}
     </div>
@@ -431,7 +473,7 @@ function ListTrackRow({
   tr, openTrack, setOT, openSys, setOS,
   names, quarters, colors, impacts, selected, onCardClick, onRename, onImpactCycle, impactFilter,
   descriptions, taskOverrides, comments, commentsOpen,
-  onCommentsToggle, onCommentAdd, onDescSave, onTaskAdd, onTaskRemove,
+  onCommentsToggle, onCommentAdd, onCommentEdit, onDescSave, onTaskAdd, onTaskRemove,
 }: {
   tr: Track; openTrack: string | null; setOT: (v: string | null) => void;
   openSys: string | null; setOS: (v: string | null) => void;
@@ -442,6 +484,7 @@ function ListTrackRow({
   descriptions: Record<string, string>; taskOverrides: Record<string, Initiative[]>;
   comments: Comment[]; commentsOpen: Record<string, boolean>;
   onCommentsToggle: (n: string) => void; onCommentAdd: (pn: string, content: string, author: string) => void;
+  onCommentEdit: (id: string, content: string) => void;
   onDescSave: (n: string, v: string) => void;
   onTaskAdd: (n: string, name: string) => void; onTaskRemove: (n: string, taskName: string) => void;
 }) {
@@ -493,6 +536,7 @@ function ListTrackRow({
               commentsOpen={commentsOpen[sys.n] ?? false}
               onCommentsToggle={() => onCommentsToggle(sys.n)}
               onCommentAdd={(content, author) => onCommentAdd(sys.n, content, author)}
+              onCommentEdit={onCommentEdit}
             />
           ))}
         </div>
@@ -517,6 +561,7 @@ function KanbanCard({
   tasks: Initiative[];
   projectComments: Comment[]; commentsOpen: boolean;
   onCommentsToggle: () => void; onCommentAdd: (content: string, author: string) => void;
+  onCommentEdit: (id: string, content: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const sc = status ? STATUS[status] : null;
@@ -598,7 +643,7 @@ function KanbanCard({
       )}
       {commentsOpen && (
         <div onClick={e => e.stopPropagation()} style={{ marginTop: 8, cursor: "default" }}>
-          <CommentSection comments={projectComments} onAdd={onCommentAdd} />
+          <CommentSection comments={projectComments} onAdd={onCommentAdd} onEdit={onCommentEdit} />
         </div>
       )}
     </div>
@@ -623,6 +668,7 @@ function KanbanColumn({
   taskOverrides: Record<string, Initiative[]>;
   comments: Comment[]; commentsOpen: Record<string, boolean>;
   onCommentsToggle: (n: string) => void; onCommentAdd: (pn: string, content: string, author: string) => void;
+  onCommentEdit: (id: string, content: string) => void;
 }) {
   return (
     <div
@@ -656,6 +702,7 @@ function KanbanColumn({
             commentsOpen={commentsOpen[sys.n] ?? false}
             onCommentsToggle={() => onCommentsToggle(sys.n)}
             onCommentAdd={(content, author) => onCommentAdd(sys.n, content, author)}
+            onCommentEdit={onCommentEdit}
           />
         ))}
         {items.length === 0 && (
@@ -810,6 +857,16 @@ export default function AutomationDashboard() {
     setComments(prev => [newComment, ...prev]);
   }
 
+  async function handleCommentEdit(id: string, content: string) {
+    const res = await fetch(`/api/comments/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    const updated = await res.json() as Comment;
+    setComments(prev => prev.map(c => c.id === id ? updated : c));
+  }
+
   function handleBulkColor(c: StatusColor | null) {
     setColors(prev => {
       if (c === null) {
@@ -932,6 +989,7 @@ export default function AutomationDashboard() {
                 comments={comments} commentsOpen={commentsOpen}
                 onCommentsToggle={handleCommentsToggle}
                 onCommentAdd={(pn, content, author) => { void handleCommentAdd(pn, content, author); }}
+                onCommentEdit={(id, content) => { void handleCommentEdit(id, content); }}
                 onDescSave={handleDescSave} onTaskAdd={handleTaskAdd} onTaskRemove={handleTaskRemove}
               />
             ))}
@@ -957,6 +1015,7 @@ export default function AutomationDashboard() {
               comments={comments} commentsOpen={commentsOpen}
               onCommentsToggle={handleCommentsToggle}
               onCommentAdd={(pn, content, author) => { void handleCommentAdd(pn, content, author); }}
+              onCommentEdit={(id, content) => { void handleCommentEdit(id, content); }}
             />
           ))}
         </div>
