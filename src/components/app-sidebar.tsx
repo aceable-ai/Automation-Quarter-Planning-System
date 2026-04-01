@@ -1,7 +1,7 @@
 'use client';
 
 import { Sidebar, SidebarContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail } from '@/components/ui/sidebar';
-import { Home, LayoutGrid, Database, MessageSquare } from 'lucide-react';
+import { Home, LayoutGrid, Database, MessageSquare, Target } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -41,6 +41,14 @@ export function AppSidebar() {
               <Link href="/comments">
                 <MessageSquare className="h-5 w-5" />
                 <span>Comments</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname === '/marketing-planning'} tooltip="Mktg Planning">
+              <Link href="/marketing-planning">
+                <Target className="h-5 w-5" />
+                <span>Mktg Planning</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
