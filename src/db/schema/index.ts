@@ -87,6 +87,15 @@ export const backlogItems = pgTable('backlog_items', {
   updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const standaloneDiagrams = pgTable('standalone_diagrams', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  name:        text('name').notNull(),
+  color:       text('color').notNull().default('#6366f1'),
+  diagramData: jsonb('diagram_data').default({ nodes: [], edges: [] }).$type<{ nodes: unknown[]; edges: unknown[] }>(),
+  createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const epicTasks = pgTable('epic_tasks', {
   id:            uuid('id').primaryKey().defaultRandom(),
   backlogItemId: text('backlog_item_id').notNull(),
