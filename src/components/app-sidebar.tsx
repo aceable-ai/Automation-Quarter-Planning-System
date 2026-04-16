@@ -1,7 +1,7 @@
 'use client';
 
 import { Sidebar, SidebarContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail } from '@/components/ui/sidebar';
-import { Home, LayoutGrid, Database, MessageSquare, Target, FolderKanban, History, Inbox } from 'lucide-react';
+import { Home, LayoutGrid, Database, MessageSquare, Target, FolderKanban, History, Inbox, Network } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -54,6 +54,14 @@ export function AppSidebar() {
               <Link href="/master-plans">
                 <FolderKanban className="h-5 w-5" />
                 <span>Master Plans</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname.endsWith('/diagram')} tooltip="Diagrams">
+              <Link href="/diagrams">
+                <Network className="h-5 w-5" />
+                <span>Diagrams</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -38,7 +38,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   cut:           { bg: '#fef2f2', text: '#991b1b' },
 };
 
-const PROJECT_STATUSES = ['active', 'stalled', 'shipped'];
+const PROJECT_STATUSES = ['active', 'stalled', 'shipped', 'archived'];
 
 const SCORING_GUIDE = {
   businessValue: ['', '1 — Cosmetic', '2 — Nice-to-have', '3 — Moderate improvement', '4 — Significant savings', '5 — Revenue / critical process'],

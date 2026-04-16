@@ -26,9 +26,10 @@ interface BacklogItem {
 
 const DEFAULT_BADGE = { bg: '#dcfce7', text: '#166534', label: 'Active' } as const;
 const STATUS_BADGE: Record<string, { bg: string; text: string; label: string }> = {
-  active:  DEFAULT_BADGE,
-  stalled: { bg: '#fef9c3', text: '#854d0e', label: 'Stalled' },
-  shipped: { bg: '#dbeafe', text: '#1e40af', label: 'Shipped' },
+  active:   DEFAULT_BADGE,
+  stalled:  { bg: '#fef9c3', text: '#854d0e', label: 'Stalled' },
+  shipped:  { bg: '#dbeafe', text: '#1e40af', label: 'Shipped' },
+  archived: { bg: '#f3f4f6', text: '#6b7280', label: 'Archived' },
 };
 
 export default function MasterPlansPage() {
@@ -38,6 +39,7 @@ export default function MasterPlansPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [newId, setNewId] = useState('');
   const [newName, setNewName] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     void Promise.all([
@@ -134,8 +136,17 @@ export default function MasterPlansPage() {
         </div>
       )}
 
+      {projects.some(p => p.status === 'archived' || p.status === 'shipped') && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, color: '#9ca3af', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
+            Show archived / shipped projects
+          </label>
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
-        {projects.map(p => {
+        {projects.filter(p => showArchived || (p.status !== 'archived' && p.status !== 'shipped')).map(p => {
           const stats = getBacklogStats(p.id);
           const badge = (STATUS_BADGE as Record<string, { bg: string; text: string; label: string } | undefined>)[p.status] ?? DEFAULT_BADGE;
           const donePhases = p.phases.filter(ph => ph.status === 'done').length;
