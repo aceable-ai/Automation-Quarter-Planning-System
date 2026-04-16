@@ -551,7 +551,7 @@ function KanbanCard({
   sys, track, displayName, onRename,
   status, isSelected, onCardClick, onDragStart,
   displayImp, onImpCycle, tasks,
-  projectComments, commentsOpen, onCommentsToggle, onCommentAdd,
+  projectComments, commentsOpen, onCommentsToggle, onCommentAdd, onCommentEdit,
 }: {
   sys: Project; track: Track;
   displayName: string; onRename: (v: string) => void;
@@ -653,7 +653,7 @@ function KanbanCard({
 function KanbanColumn({
   col, items, names, colors, impacts, selected,
   onCardClick, onRename, onDragStart, onDragEnter, onDrop, isOver, onImpactCycle,
-  taskOverrides, comments, commentsOpen, onCommentsToggle, onCommentAdd,
+  taskOverrides, comments, commentsOpen, onCommentsToggle, onCommentAdd, onCommentEdit,
 }: {
   col: string;
   items: { sys: Project; track: Track }[];

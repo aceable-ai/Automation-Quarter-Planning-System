@@ -241,6 +241,7 @@ function CategoryRow({
     if (from === null || from === i) { setDragOver(null); return; }
     const next = [...catData.features];
     const [moved] = next.splice(from, 1);
+    if (!moved) { setDragOver(null); return; }
     next.splice(i, 0, moved);
     setFeatures(next);
     dragSrc.current = null;
@@ -321,7 +322,7 @@ export default function MarketingPlanning() {
   const seoTotal = seo.reduce((acc, c) => acc + c.features.length, 0);
 
   function setFeaturesFor(
-    section: 'GTM' | 'SEO',
+    _section: 'GTM' | 'SEO',
     cats: Category[],
     setCats: (c: Category[]) => void,
     catName: string,
