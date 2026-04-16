@@ -13,7 +13,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === '/'} tooltip="Home">
+            <SidebarMenuButton asChild isActive={pathname === '/'}>
               <Link href="/">
                 <Home className="h-5 w-5" />
                 <span>Home</span>
@@ -21,7 +21,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === '/platform-map'} tooltip="Platform Map">
+            <SidebarMenuButton asChild isActive={pathname === '/platform-map'}>
               <Link href="/platform-map">
                 <LayoutGrid className="h-5 w-5" />
                 <span>Platform Map</span>
@@ -29,7 +29,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === '/database-roadmap'} tooltip="Database Roadmap">
+            <SidebarMenuButton asChild isActive={pathname === '/database-roadmap'}>
               <Link href="/database-roadmap">
                 <Database className="h-5 w-5" />
                 <span>Database Roadmap</span>
@@ -37,7 +37,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === '/comments'} tooltip="Comments">
+            <SidebarMenuButton asChild isActive={pathname === '/comments'}>
               <Link href="/comments">
                 <MessageSquare className="h-5 w-5" />
                 <span>Comments</span>
@@ -50,7 +50,7 @@ export function AppSidebar() {
             <div style={{ height: 1, background: '#e5e7eb', margin: '8px 12px' }} />
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname.startsWith('/master-plans')} tooltip="Master Plans">
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/master-plans')}>
               <Link href="/master-plans">
                 <FolderKanban className="h-5 w-5" />
                 <span>Master Plans</span>
@@ -58,7 +58,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname.endsWith('/diagram')} tooltip="Diagrams">
+            <SidebarMenuButton asChild isActive={pathname.endsWith('/diagram')}>
               <Link href="/diagrams">
                 <Network className="h-5 w-5" />
                 <span>Diagrams</span>
@@ -66,7 +66,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === '/cycle-planning'} tooltip="Cycle Planning">
+            <SidebarMenuButton asChild isActive={pathname === '/cycle-planning'}>
               <Link href="/cycle-planning">
                 <Target className="h-5 w-5" />
                 <span>Cycle Planning</span>
@@ -74,7 +74,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname.startsWith('/cycles')} tooltip="Cycle History">
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/cycles')}>
               <Link href="/cycles">
                 <History className="h-5 w-5" />
                 <span>Cycle History</span>
@@ -82,7 +82,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === '/feedback-inbox'} tooltip="Feedback Inbox">
+            <SidebarMenuButton asChild isActive={pathname === '/feedback-inbox'}>
               <Link href="/feedback-inbox">
                 <Inbox className="h-5 w-5" />
                 <span>Feedback Inbox</span>
