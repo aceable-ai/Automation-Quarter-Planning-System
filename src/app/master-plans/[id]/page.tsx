@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -16,7 +16,13 @@ interface BacklogItem {
   id: string; project_id: string; title: string; description: string | null;
   business_value: number; reach: number; urgency: number; impact: string;
   effort: string; effort_weeks: string; priority: string; status: string;
-  cycle_id: string | null; notes: string | null;
+  cycle_id: string | null; jira_key: string | null; jira_project: string;
+  notes: string | null;
+}
+
+interface EpicTask {
+  id: string; backlog_item_id: string; title: string; status: string;
+  assignee: string | null; jira_key: string | null; sort_order: number;
 }
 
 const EFFORT_OPTIONS = ['XS', 'S', 'M', 'L', 'XL'];
@@ -53,6 +59,10 @@ export default function ProjectDetailPage() {
   const [newPhaseName, setNewPhaseName] = useState('');
   const [newPhaseDesc, setNewPhaseDesc] = useState('');
   const [sortBy, setSortBy] = useState<'priority' | 'status' | 'effort'>('priority');
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<Record<string, EpicTask[]>>({});
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [pushingJira, setPushingJira] = useState<string | null>(null);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -110,6 +120,110 @@ export default function ProjectDetailPage() {
   async function deleteItem(itemId: string) {
     await fetch(`/api/backlog/${itemId}`, { method: 'DELETE' });
     setItems(prev => prev.filter(i => i.id !== itemId));
+  }
+
+  async function toggleExpand(itemId: string) {
+    if (expandedItem === itemId) { setExpandedItem(null); return; }
+    setExpandedItem(itemId);
+    if (!tasks[itemId]) {
+      const res = await fetch(`/api/tasks?backlogItemId=${itemId}`);
+      const t = (await res.json()) as EpicTask[];
+      setTasks(prev => ({ ...prev, [itemId]: t }));
+    }
+  }
+
+  async function addTask(backlogItemId: string) {
+    if (!newTaskTitle.trim()) return;
+    const existing = tasks[backlogItemId] ?? [];
+    const res = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ backlogItemId, title: newTaskTitle.trim(), sortOrder: existing.length }),
+    });
+    if (res.ok) {
+      const task = (await res.json()) as EpicTask;
+      setTasks(prev => ({ ...prev, [backlogItemId]: [...(prev[backlogItemId] ?? []), task] }));
+      setNewTaskTitle('');
+    }
+  }
+
+  async function updateTaskStatus(taskId: string, backlogItemId: string, newStatus: string) {
+    const res = await fetch(`/api/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (res.ok) {
+      const updated = (await res.json()) as EpicTask;
+      setTasks(prev => ({
+        ...prev,
+        [backlogItemId]: (prev[backlogItemId] ?? []).map(t => t.id === taskId ? updated : t),
+      }));
+    }
+  }
+
+  async function deleteTask(taskId: string, backlogItemId: string) {
+    await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+    setTasks(prev => ({
+      ...prev,
+      [backlogItemId]: (prev[backlogItemId] ?? []).filter(t => t.id !== taskId),
+    }));
+  }
+
+  async function pushEpicToJira(item: BacklogItem) {
+    setPushingJira(item.id);
+    try {
+      const res = await fetch('/api/jira/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'epic',
+          backlogItemId: item.id,
+          title: `[${item.id}] ${item.title}`,
+          description: item.description ?? undefined,
+          projectKey: item.jira_project,
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; jiraKey?: string; error?: string };
+      if (data.ok && data.jiraKey) {
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, jira_key: data.jiraKey ?? null } : i));
+      } else {
+        console.error('Jira push failed:', data.error ?? 'Unknown error');
+      }
+    } finally {
+      setPushingJira(null);
+    }
+  }
+
+  async function pushTaskToJira(task: EpicTask, parentItem: BacklogItem) {
+    setPushingJira(task.id);
+    try {
+      const res = await fetch('/api/jira/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'task',
+          backlogItemId: parentItem.id,
+          taskId: task.id,
+          title: task.title,
+          projectKey: parentItem.jira_project,
+          parentJiraKey: parentItem.jira_key ?? undefined,
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; jiraKey?: string; error?: string };
+      if (data.ok && data.jiraKey) {
+        setTasks(prev => ({
+          ...prev,
+          [parentItem.id]: (prev[parentItem.id] ?? []).map(t =>
+            t.id === task.id ? { ...t, jira_key: data.jiraKey ?? null } : t
+          ),
+        }));
+      } else {
+        console.error('Jira push failed:', data.error ?? 'Unknown error');
+      }
+    } finally {
+      setPushingJira(null);
+    }
   }
 
   function updatePhaseStatus(idx: number, newStatus: string) {
@@ -290,6 +404,7 @@ export default function ProjectDetailPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 11, width: 24 }}></th>
                 <th style={{ padding: '8px 6px', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: 11 }}>ID</th>
                 <th style={{ padding: '8px 6px', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: 11 }}>Title</th>
                 <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 11 }} title="Business Value">BV</th>
@@ -299,61 +414,137 @@ export default function ProjectDetailPage() {
                 <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 11 }}>Effort</th>
                 <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 11 }}>Priority</th>
                 <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 11 }}>Status</th>
+                <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 11 }}>Jira</th>
                 <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 11 }}></th>
               </tr>
             </thead>
             <tbody>
               {sorted.map(item => {
                 const sc = (STATUS_COLORS as Record<string, { bg: string; text: string } | undefined>)[item.status] ?? DEFAULT_STATUS;
+                const isExpanded = expandedItem === item.id;
+                const itemTasks = tasks[item.id] ?? [];
+                const tasksDone = itemTasks.filter(t => t.status === 'done').length;
                 return (
-                  <tr key={item.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    <td style={{ padding: '8px 6px', fontFamily: 'monospace', fontSize: 11, color: '#9ca3af' }}>{item.id}</td>
-                    <td style={{ padding: '8px 6px', fontWeight: 500, color: '#111827', maxWidth: 300 }}>{item.title}</td>
-                    <td style={{ padding: '8px 6px', textAlign: 'center' }}>
-                      <select value={item.business_value} onChange={e => void updateItem(item.id, { businessValue: Number(e.target.value) })}
-                        title={SCORING_GUIDE.businessValue[item.business_value]}
-                        style={{ width: 40, textAlign: 'center', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 12, padding: '2px 0' }}>
-                        {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                    </td>
-                    <td style={{ padding: '8px 6px', textAlign: 'center' }}>
-                      <select value={item.reach} onChange={e => void updateItem(item.id, { reach: Number(e.target.value) })}
-                        title={SCORING_GUIDE.reach[item.reach]}
-                        style={{ width: 40, textAlign: 'center', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 12, padding: '2px 0' }}>
-                        {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                    </td>
-                    <td style={{ padding: '8px 6px', textAlign: 'center' }}>
-                      <select value={item.urgency} onChange={e => void updateItem(item.id, { urgency: Number(e.target.value) })}
-                        title={SCORING_GUIDE.urgency[item.urgency]}
-                        style={{ width: 40, textAlign: 'center', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 12, padding: '2px 0' }}>
-                        {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                    </td>
-                    <td style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 700, color: Number(item.impact) >= 4 ? '#166534' : Number(item.impact) >= 3 ? '#854d0e' : '#6b7280' }}>
-                      {item.impact}
-                    </td>
-                    <td style={{ padding: '8px 6px', textAlign: 'center' }}>
-                      <select value={item.effort} onChange={e => void updateItem(item.id, { effort: e.target.value })}
-                        style={{ width: 48, textAlign: 'center', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 12, padding: '2px 0' }}>
-                        {EFFORT_OPTIONS.map(e => <option key={e} value={e}>{e}</option>)}
-                      </select>
-                    </td>
-                    <td style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 700, fontSize: 14, color: Number(item.priority) >= 3 ? '#166534' : Number(item.priority) >= 1.5 ? '#854d0e' : '#6b7280' }}>
-                      {item.priority}
-                    </td>
-                    <td style={{ padding: '8px 6px', textAlign: 'center' }}>
-                      <select value={item.status} onChange={e => void updateItem(item.id, { status: e.target.value })}
-                        style={{ fontSize: 11, fontWeight: 600, padding: '3px 6px', borderRadius: 6, border: '1px solid #d1d5db', background: sc.bg, color: sc.text }}>
-                        {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </td>
-                    <td style={{ padding: '8px 6px', textAlign: 'center' }}>
-                      <button onClick={() => void deleteItem(item.id)}
-                        style={{ fontSize: 11, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.4 }}
-                        title="Delete item">&#10005;</button>
-                    </td>
-                  </tr>
+                  <React.Fragment key={item.id}>
+                    <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #f3f4f6', cursor: 'pointer' }}>
+                      <td style={{ padding: '8px 4px', textAlign: 'center' }}>
+                        <button onClick={() => void toggleExpand(item.id)}
+                          style={{ fontSize: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
+                          {isExpanded ? '\u25BC' : '\u25B6'}
+                        </button>
+                      </td>
+                      <td style={{ padding: '8px 6px', fontFamily: 'monospace', fontSize: 11, color: '#9ca3af' }}>{item.id}</td>
+                      <td style={{ padding: '8px 6px', fontWeight: 500, color: '#111827', maxWidth: 300 }}>
+                        {item.title}
+                        {itemTasks.length > 0 && (
+                          <span style={{ fontSize: 10, color: '#9ca3af', marginLeft: 6 }}>
+                            {tasksDone}/{itemTasks.length} tasks
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '8px 6px', textAlign: 'center' }}>
+                        <select value={item.business_value} onChange={e => void updateItem(item.id, { businessValue: Number(e.target.value) })}
+                          title={SCORING_GUIDE.businessValue[item.business_value]}
+                          style={{ width: 40, textAlign: 'center', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 12, padding: '2px 0' }}>
+                          {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ padding: '8px 6px', textAlign: 'center' }}>
+                        <select value={item.reach} onChange={e => void updateItem(item.id, { reach: Number(e.target.value) })}
+                          title={SCORING_GUIDE.reach[item.reach]}
+                          style={{ width: 40, textAlign: 'center', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 12, padding: '2px 0' }}>
+                          {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ padding: '8px 6px', textAlign: 'center' }}>
+                        <select value={item.urgency} onChange={e => void updateItem(item.id, { urgency: Number(e.target.value) })}
+                          title={SCORING_GUIDE.urgency[item.urgency]}
+                          style={{ width: 40, textAlign: 'center', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 12, padding: '2px 0' }}>
+                          {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 700, color: Number(item.impact) >= 4 ? '#166534' : Number(item.impact) >= 3 ? '#854d0e' : '#6b7280' }}>
+                        {item.impact}
+                      </td>
+                      <td style={{ padding: '8px 6px', textAlign: 'center' }}>
+                        <select value={item.effort} onChange={e => void updateItem(item.id, { effort: e.target.value })}
+                          style={{ width: 48, textAlign: 'center', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 12, padding: '2px 0' }}>
+                          {EFFORT_OPTIONS.map(e => <option key={e} value={e}>{e}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 700, fontSize: 14, color: Number(item.priority) >= 3 ? '#166534' : Number(item.priority) >= 1.5 ? '#854d0e' : '#6b7280' }}>
+                        {item.priority}
+                      </td>
+                      <td style={{ padding: '8px 6px', textAlign: 'center' }}>
+                        <select value={item.status} onChange={e => void updateItem(item.id, { status: e.target.value })}
+                          style={{ fontSize: 11, fontWeight: 600, padding: '3px 6px', borderRadius: 6, border: '1px solid #d1d5db', background: sc.bg, color: sc.text }}>
+                          {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ padding: '8px 6px', textAlign: 'center' }}>
+                        {item.jira_key ? (
+                          <a href={`https://aceable.atlassian.net/browse/${item.jira_key}`} target="_blank" rel="noopener noreferrer"
+                            style={{ fontSize: 10, fontWeight: 600, color: '#2563eb', textDecoration: 'none' }}
+                            title={item.jira_key}>{item.jira_key}</a>
+                        ) : (
+                          <button onClick={() => void pushEpicToJira(item)} disabled={pushingJira === item.id}
+                            style={{ fontSize: 10, fontWeight: 600, color: '#fff', background: pushingJira === item.id ? '#9ca3af' : '#2563eb', border: 'none', borderRadius: 4, padding: '2px 6px', cursor: 'pointer' }}
+                            title="Push as Epic to Jira">
+                            {pushingJira === item.id ? '...' : 'Push'}
+                          </button>
+                        )}
+                      </td>
+                      <td style={{ padding: '8px 6px', textAlign: 'center' }}>
+                        <button onClick={() => void deleteItem(item.id)}
+                          style={{ fontSize: 11, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.4 }}
+                          title="Delete item">&#10005;</button>
+                      </td>
+                    </tr>
+
+                    {/* Expanded task breakdown */}
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={12} style={{ padding: '0 6px 12px 40px', background: '#fafbfc' }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6, marginTop: 4 }}>
+                            Tasks ({itemTasks.length})
+                          </div>
+                          {itemTasks.map(task => {
+                            const taskSc = (STATUS_COLORS as Record<string, { bg: string; text: string } | undefined>)[task.status] ?? DEFAULT_STATUS;
+                            return (
+                              <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
+                                <select value={task.status} onChange={e => void updateTaskStatus(task.id, item.id, e.target.value)}
+                                  style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, border: '1px solid #e5e7eb', background: taskSc.bg, color: taskSc.text, width: 90 }}>
+                                  {['todo', 'in-progress', 'done'].map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                                <span style={{ flex: 1, fontSize: 12, color: task.status === 'done' ? '#9ca3af' : '#111827', textDecoration: task.status === 'done' ? 'line-through' : 'none' }}>
+                                  {task.title}
+                                </span>
+                                {task.jira_key ? (
+                                  <a href={`https://aceable.atlassian.net/browse/${task.jira_key}`} target="_blank" rel="noopener noreferrer"
+                                    style={{ fontSize: 10, fontWeight: 600, color: '#2563eb', textDecoration: 'none' }}>{task.jira_key}</a>
+                                ) : (
+                                  <button onClick={() => void pushTaskToJira(task, item)} disabled={pushingJira === task.id}
+                                    style={{ fontSize: 9, fontWeight: 600, color: '#fff', background: pushingJira === task.id ? '#9ca3af' : '#2563eb', border: 'none', borderRadius: 3, padding: '1px 5px', cursor: 'pointer' }}>
+                                    {pushingJira === task.id ? '...' : 'Jira'}
+                                  </button>
+                                )}
+                                <button onClick={() => void deleteTask(task.id, item.id)}
+                                  style={{ fontSize: 10, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.4 }}>&#10005;</button>
+                              </div>
+                            );
+                          })}
+                          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                            <input value={expandedItem === item.id ? newTaskTitle : ''} onChange={e => setNewTaskTitle(e.target.value)}
+                              placeholder="Add a task..."
+                              onKeyDown={e => { if (e.key === 'Enter') void addTask(item.id); }}
+                              style={{ flex: 1, padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 4, fontSize: 12 }} />
+                            <button onClick={() => void addTask(item.id)}
+                              style={{ padding: '4px 10px', fontSize: 11, fontWeight: 600, color: '#fff', background: '#4f46e5', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Add</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>

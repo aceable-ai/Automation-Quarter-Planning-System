@@ -79,7 +79,21 @@ export const backlogItems = pgTable('backlog_items', {
   priority:      numeric('priority').notNull().default('1.5'),
   status:        text('status').notNull().default('backlog'),
   cycleId:       text('cycle_id'),
+  jiraKey:       text('jira_key'),
+  jiraProject:   text('jira_project').notNull().default('MAUT'),
   notes:         text('notes'),
+  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const epicTasks = pgTable('epic_tasks', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  backlogItemId: text('backlog_item_id').notNull(),
+  title:         text('title').notNull(),
+  status:        text('status').notNull().default('todo'),
+  assignee:      text('assignee'),
+  jiraKey:       text('jira_key'),
+  sortOrder:     integer('sort_order').notNull().default(0),
   createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
