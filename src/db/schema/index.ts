@@ -33,6 +33,7 @@ export const masterProjects = pgTable('master_projects', {
   users:       text('users'),
   color:       text('color').notNull().default('#6366f1'),
   phases:      jsonb('phases').default([]).$type<{ name: string; description: string; status: string }[]>(),
+  diagramData: jsonb('diagram_data').$type<{ nodes: unknown[]; edges: unknown[] }>(),
   createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

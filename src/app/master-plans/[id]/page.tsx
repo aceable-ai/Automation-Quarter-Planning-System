@@ -324,6 +324,9 @@ export default function ProjectDetailPage() {
           {project.users && <span>Users: {project.users}</span>}
           {project.repo_url && <a href={project.repo_url} target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1' }}>GitHub</a>}
           {project.launched_at && <span>Launched: {project.launched_at}</span>}
+          <Link href={`/master-plans/${id}/diagram`} style={{ color: '#4f46e5', fontWeight: 600, textDecoration: 'none' }}>
+            Architecture Diagram &rarr;
+          </Link>
         </div>
       </div>
 
