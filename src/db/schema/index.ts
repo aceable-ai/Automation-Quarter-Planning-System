@@ -1,4 +1,4 @@
-import { boolean, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, date, integer, jsonb, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const dashboardOverrides = pgTable('dashboard_overrides', {
   id:           integer('id').primaryKey().default(1),
@@ -18,4 +18,68 @@ export const projectComments = pgTable('project_comments', {
   content:     text('content').notNull(),
   vetted:      boolean('vetted').notNull().default(false),
   createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* ── Portfolio Planning tables ── */
+
+export const masterProjects = pgTable('master_projects', {
+  id:          text('id').primaryKey(),
+  name:        text('name').notNull(),
+  description: text('description').notNull().default(''),
+  repoUrl:     text('repo_url'),
+  stack:       text('stack'),
+  status:      text('status').notNull().default('active'),
+  launchedAt:  date('launched_at'),
+  users:       text('users'),
+  color:       text('color').notNull().default('#6366f1'),
+  phases:      jsonb('phases').default([]).$type<{ name: string; description: string; status: string }[]>(),
+  createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const cycles = pgTable('cycles', {
+  id:             text('id').primaryKey(),
+  name:           text('name').notNull(),
+  startDate:      date('start_date').notNull(),
+  endDate:        date('end_date').notNull(),
+  goal:           text('goal'),
+  budgetWeeks:    numeric('budget_weeks').notNull().default('4.5'),
+  status:         text('status').notNull().default('planning'),
+  retroShipped:   text('retro_shipped'),
+  retroMissed:    text('retro_missed'),
+  retroLearnings: text('retro_learnings'),
+  createdAt:      timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const feedbackInbox = pgTable('feedback_inbox', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  source:      text('source').notNull(),
+  sourceId:    text('source_id'),
+  projectId:   text('project_id'),
+  category:    text('category').notNull().default('feature-request'),
+  author:      text('author').notNull().default('Anonymous'),
+  title:       text('title').notNull(),
+  body:        text('body'),
+  status:      text('status').notNull().default('pending'),
+  backlogItemId: text('backlog_item_id'),
+  createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const backlogItems = pgTable('backlog_items', {
+  id:            text('id').primaryKey(),
+  projectId:     text('project_id').notNull(),
+  title:         text('title').notNull(),
+  description:   text('description'),
+  businessValue: integer('business_value').notNull().default(3),
+  reach:         integer('reach').notNull().default(3),
+  urgency:       integer('urgency').notNull().default(3),
+  impact:        numeric('impact').notNull().default('3.0'),
+  effort:        text('effort').notNull().default('M'),
+  effortWeeks:   numeric('effort_weeks').notNull().default('2'),
+  priority:      numeric('priority').notNull().default('1.5'),
+  status:        text('status').notNull().default('backlog'),
+  cycleId:       text('cycle_id'),
+  notes:         text('notes'),
+  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

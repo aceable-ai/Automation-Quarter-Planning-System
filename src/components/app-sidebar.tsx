@@ -1,7 +1,7 @@
 'use client';
 
 import { Sidebar, SidebarContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail } from '@/components/ui/sidebar';
-import { Home, LayoutGrid, Database, MessageSquare, Target } from 'lucide-react';
+import { Home, LayoutGrid, Database, MessageSquare, Target, FolderKanban, History, Inbox } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -44,11 +44,40 @@ export function AppSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
+          {/* Portfolio Planning */}
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === '/marketing-planning'} tooltip="Mktg Planning">
-              <Link href="/marketing-planning">
+            <div style={{ height: 1, background: '#e5e7eb', margin: '8px 12px' }} />
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/master-plans')} tooltip="Master Plans">
+              <Link href="/master-plans">
+                <FolderKanban className="h-5 w-5" />
+                <span>Master Plans</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname === '/cycle-planning'} tooltip="Cycle Planning">
+              <Link href="/cycle-planning">
                 <Target className="h-5 w-5" />
-                <span>Mktg Planning</span>
+                <span>Cycle Planning</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname.startsWith('/cycles')} tooltip="Cycle History">
+              <Link href="/cycles">
+                <History className="h-5 w-5" />
+                <span>Cycle History</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname === '/feedback-inbox'} tooltip="Feedback Inbox">
+              <Link href="/feedback-inbox">
+                <Inbox className="h-5 w-5" />
+                <span>Feedback Inbox</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
