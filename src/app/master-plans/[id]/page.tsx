@@ -71,7 +71,7 @@ export default function ProjectDetailPage() {
       fetch(`/api/master-projects/${id}`).then(r => r.json() as Promise<Project>),
       fetch(`/api/backlog?project=${id}`).then(r => r.json() as Promise<BacklogItem[]>),
     ]).then(([p, b]: [Project, BacklogItem[]]) => {
-      setProject(p);
+      setProject({ ...p, phases: Array.isArray(p.phases) ? p.phases : [] });
       setItems(b);
     }).finally(() => setLoaded(true));
   }, [id]);

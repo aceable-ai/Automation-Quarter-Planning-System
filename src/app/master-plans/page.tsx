@@ -161,8 +161,9 @@ export default function MasterPlansPage() {
         {projects.filter(p => showArchived || (p.status !== 'archived' && p.status !== 'shipped')).map(p => {
           const stats = getBacklogStats(p.id);
           const badge = (STATUS_BADGE as Record<string, { bg: string; text: string; label: string } | undefined>)[p.status] ?? DEFAULT_BADGE;
-          const donePhases = p.phases.filter(ph => ph.status === 'done').length;
-          const totalPhases = p.phases.length;
+          const phases = Array.isArray(p.phases) ? p.phases : [];
+          const donePhases = phases.filter(ph => ph.status === 'done').length;
+          const totalPhases = phases.length;
 
           return (
             <Link href={`/master-plans/${p.id}`} key={p.id} style={{ textDecoration: 'none' }}>
