@@ -93,15 +93,27 @@ export default function MasterPlansPage() {
             {projects.length} project{projects.length !== 1 ? 's' : ''} &middot; {backlog.filter(b => b.status === 'backlog').length} backlog items
           </p>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          style={{
-            padding: '8px 16px', fontSize: 14, fontWeight: 600, color: '#fff',
-            background: '#4f46e5', border: 'none', borderRadius: 8, cursor: 'pointer',
-          }}
-        >
-          + Add Project
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Link
+            href="/master-plans/submit"
+            style={{
+              padding: '8px 16px', fontSize: 14, fontWeight: 600, color: '#4f46e5',
+              background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 8,
+              textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
+            }}
+          >
+            Submit a problem
+          </Link>
+          <button
+            onClick={() => setShowAdd(true)}
+            style={{
+              padding: '8px 16px', fontSize: 14, fontWeight: 600, color: '#fff',
+              background: '#4f46e5', border: 'none', borderRadius: 8, cursor: 'pointer',
+            }}
+          >
+            + Add Project
+          </button>
+        </div>
       </div>
 
       {showAdd && (
