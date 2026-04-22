@@ -1,7 +1,7 @@
 'use client';
 
 import { Sidebar, SidebarContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail } from '@/components/ui/sidebar';
-import { Home, LayoutGrid, Database, MessageSquare, Target, FolderKanban, History, Inbox, Network } from 'lucide-react';
+import { Home, LayoutGrid, Database, MessageSquare, Target, FolderKanban, History, Inbox, Network, Lightbulb } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -86,6 +86,14 @@ export function AppSidebar() {
               <Link href="/feedback-inbox">
                 <Inbox className="h-5 w-5" />
                 <span>Feedback Inbox</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname === '/master-plans/submit'}>
+              <Link href="/master-plans/submit">
+                <Lightbulb className="h-5 w-5" />
+                <span>Submit a Problem</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
