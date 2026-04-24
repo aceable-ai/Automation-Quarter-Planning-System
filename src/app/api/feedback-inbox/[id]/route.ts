@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import { NextResponse } from 'next/server';
+import { requireIngestSecret } from '@/lib/ingest-auth';
 
 function getClient() {
   const url = process.env['DATABASE_URL'];
@@ -7,8 +8,12 @@ function getClient() {
   return neon(url);
 }
 
-// PATCH: Update feedback status (approve/decline) or link to backlog item
+// PATCH: Update feedback status (approve/decline) or link to backlog item.
+// Requires x-aqps-ingest-secret for external callers; AQPS UI also sends the secret server-side.
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const authFail = requireIngestSecret(req);
+  if (authFail) return authFail;
+
   try {
     const sql = getClient();
     const { id } = await params;
@@ -34,7 +39,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 }
 
-export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const authFail = requireIngestSecret(req);
+  if (authFail) return authFail;
+
   try {
     const sql = getClient();
     const { id } = await params;
