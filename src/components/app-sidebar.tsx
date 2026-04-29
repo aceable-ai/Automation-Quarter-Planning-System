@@ -1,7 +1,7 @@
 'use client';
 
 import { Sidebar, SidebarContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail } from '@/components/ui/sidebar';
-import { Home, LayoutGrid, Database, MessageSquare, Target, FolderKanban, History, Inbox, Network, Lightbulb } from 'lucide-react';
+import { Home, LayoutGrid, Database, MessageSquare, Target, FolderKanban, History, Inbox, Network, Lightbulb, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -48,6 +48,14 @@ export function AppSidebar() {
           {/* Portfolio Planning */}
           <SidebarMenuItem>
             <div style={{ height: 1, background: '#e5e7eb', margin: '8px 12px' }} />
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname === '/portfolio-dashboard'}>
+              <Link href="/portfolio-dashboard">
+                <BarChart3 className="h-5 w-5" />
+                <span>Portfolio Dashboard</span>
+              </Link>
+            </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={pathname.startsWith('/master-plans')}>

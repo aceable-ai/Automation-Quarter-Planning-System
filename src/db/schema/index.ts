@@ -87,6 +87,12 @@ export const backlogItems = pgTable('backlog_items', {
   updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const inventoryLinks = pgTable('inventory_links', {
+  inventoryName: text('inventory_name').primaryKey(),
+  masterPlanId:  text('master_plan_id').notNull().references(() => masterProjects.id, { onDelete: 'cascade' }),
+  updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const standaloneDiagrams = pgTable('standalone_diagrams', {
   id:          uuid('id').primaryKey().defaultRandom(),
   name:        text('name').notNull(),
