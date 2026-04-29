@@ -94,30 +94,7 @@ export default function SubmitProblemPage() {
   }
 
   if (submitted) {
-    return (
-      <div style={{ maxWidth: 640, margin: '0 auto' }}>
-        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: 32, textAlign: 'center' }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#166534', margin: 0 }}>Got it — thanks!</h1>
-          <p style={{ fontSize: 14, color: '#166534', marginTop: 8, lineHeight: 1.5 }}>
-            Your problem landed in the triage queue. Peggy will decide whether it becomes its own project or a feature of an existing one.
-          </p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20 }}>
-            <button onClick={reset} style={{
-              padding: '8px 16px', fontSize: 14, fontWeight: 600, color: '#fff',
-              background: '#16a34a', border: 'none', borderRadius: 8, cursor: 'pointer',
-            }}>
-              Submit another
-            </button>
-            <Link href="/master-plans" style={{
-              padding: '8px 16px', fontSize: 14, fontWeight: 600, color: '#374151',
-              background: '#fff', border: '1px solid #d1d5db', borderRadius: 8, textDecoration: 'none',
-            }}>
-              Back to Master Plans
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
+    return <SuccessPanel onReset={reset} />;
   }
 
   return (
@@ -303,6 +280,71 @@ function TextArea({
         required={required}
         style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }}
       />
+    </div>
+  );
+}
+
+interface CurrentCycle {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+}
+
+function SuccessPanel({ onReset }: { onReset: () => void }) {
+  const [cycle, setCycle] = useState<CurrentCycle | null>(null);
+  const [entryCount, setEntryCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    void fetch('/api/cycles/current')
+      .then(r => r.json() as Promise<{ cycle: CurrentCycle | null }>)
+      .then(({ cycle: c }) => {
+        setCycle(c);
+        if (c) {
+          void fetch(`/api/cycles/${c.id}/drawing-entries`)
+            .then(r => r.json() as Promise<{ count: number }>)
+            .then(({ count }) => setEntryCount(count))
+            .catch(() => setEntryCount(null));
+        }
+      })
+      .catch(() => setCycle(null));
+  }, []);
+
+  return (
+    <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      <div style={{ background: 'linear-gradient(135deg, #faf5ff 0%, #f0f9ff 100%)', border: '1px solid #c4b5fd', borderRadius: 12, padding: 32, textAlign: 'center' }}>
+        <div style={{ fontSize: 48, lineHeight: 1, marginBottom: 8 }}>🎟️</div>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#5b21b6', margin: 0 }}>You&rsquo;re entered to win!</h1>
+        {cycle && entryCount !== null ? (
+          <p style={{ fontSize: 14, color: '#5b21b6', marginTop: 12, lineHeight: 1.6 }}>
+            You&rsquo;re entry <strong>#{entryCount}</strong> in the <strong>{cycle.name}</strong> drawing.
+            One submitter wins a custom theme song about their problem at the end of this cycle ({new Date(cycle.end_date).toLocaleDateString()}).
+            <br />
+            <span style={{ fontSize: 13, color: '#7c3aed' }}>More submissions = more chances to win.</span>
+          </p>
+        ) : (
+          <p style={{ fontSize: 14, color: '#5b21b6', marginTop: 12, lineHeight: 1.6 }}>
+            Your problem landed in the triage queue. Each submission is one entry in the cycle drawing — one submitter wins a custom theme song about their problem.
+          </p>
+        )}
+        <p style={{ fontSize: 12, color: '#7c3aed', marginTop: 12, fontStyle: 'italic' }}>
+          Bonus: if your problem makes it onto the roadmap and ships, we&rsquo;ll send you a custom celebration card.
+        </p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 24 }}>
+          <button onClick={onReset} style={{
+            padding: '8px 16px', fontSize: 14, fontWeight: 600, color: '#fff',
+            background: '#7c3aed', border: 'none', borderRadius: 8, cursor: 'pointer',
+          }}>
+            Submit another problem
+          </button>
+          <Link href="/master-plans" style={{
+            padding: '8px 16px', fontSize: 14, fontWeight: 600, color: '#374151',
+            background: '#fff', border: '1px solid #d1d5db', borderRadius: 8, textDecoration: 'none',
+          }}>
+            Back to Master Plans
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
