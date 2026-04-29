@@ -23,19 +23,34 @@ export const projectComments = pgTable('project_comments', {
 /* ── Portfolio Planning tables ── */
 
 export const masterProjects = pgTable('master_projects', {
-  id:          text('id').primaryKey(),
-  name:        text('name').notNull(),
-  description: text('description').notNull().default(''),
-  repoUrl:     text('repo_url'),
-  stack:       text('stack'),
-  status:      text('status').notNull().default('active'),
-  launchedAt:  date('launched_at'),
-  users:       text('users'),
-  color:       text('color').notNull().default('#6366f1'),
-  phases:      jsonb('phases').default([]).$type<{ name: string; description: string; status: string }[]>(),
-  diagramData: jsonb('diagram_data').$type<{ nodes: unknown[]; edges: unknown[] }>(),
-  createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt:   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  id:                          text('id').primaryKey(),
+  name:                        text('name').notNull(),
+  description:                 text('description').notNull().default(''),
+  repoUrl:                     text('repo_url'),
+  stack:                       text('stack'),
+  status:                      text('status').notNull().default('active'),
+  launchedAt:                  date('launched_at'),
+  users:                       text('users'),
+  color:                       text('color').notNull().default('#6366f1'),
+  phases:                      jsonb('phases').default([]).$type<{ name: string; description: string; status: string }[]>(),
+  diagramData:                 jsonb('diagram_data').$type<{ nodes: unknown[]; edges: unknown[] }>(),
+  shippedAt:                   timestamp('shipped_at', { withTimezone: true }),
+  shipAnnouncementDraft:       text('ship_announcement_draft'),
+  celebrationImageUrl:         text('celebration_image_url'),
+  celebrationImageGeneratedAt: timestamp('celebration_image_generated_at', { withTimezone: true }),
+  createdAt:                   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:                   timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const songDrawings = pgTable('song_drawings', {
+  id:                  text('id').primaryKey(),
+  cycleId:             text('cycle_id').notNull().references(() => cycles.id, { onDelete: 'cascade' }),
+  winnerSubmissionId:  uuid('winner_submission_id').references(() => feedbackInbox.id, { onDelete: 'set null' }),
+  winnerName:          text('winner_name').notNull(),
+  songUrl:             text('song_url'),
+  songGeneratedAt:     timestamp('song_generated_at', { withTimezone: true }),
+  drawnAt:             timestamp('drawn_at', { withTimezone: true }).notNull().defaultNow(),
+  drawnBy:             text('drawn_by'),
 });
 
 export const cycles = pgTable('cycles', {

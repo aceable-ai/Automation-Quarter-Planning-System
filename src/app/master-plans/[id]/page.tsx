@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 interface Phase { name: string; description: string; status: string }
 
@@ -10,6 +11,9 @@ interface Project {
   id: string; name: string; description: string; repo_url: string | null;
   stack: string | null; status: string; launched_at: string | null;
   users: string | null; color: string; phases: Phase[];
+  shipped_at?: string | null;
+  ship_announcement_draft?: string | null;
+  celebration_image_url?: string | null;
 }
 
 interface BacklogItem {
@@ -368,6 +372,15 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
+      <RewardPanel
+        masterPlanId={project.id}
+        planTitle={project.name}
+        shippedAt={project.shipped_at ?? null}
+        celebrationImageUrl={project.celebration_image_url ?? null}
+        announcementDraft={project.ship_announcement_draft ?? null}
+        onShipped={updates => setProject(prev => prev ? { ...prev, ...updates } : prev)}
+      />
+
       <LinkedInventory masterPlanId={project.id} />
 
       {/* Backlog Table */}
@@ -615,6 +628,235 @@ function LinkedInventory({ masterPlanId }: { masterPlanId: string }) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+interface CreditEntry {
+  id: string;
+  author: string;
+  title: string;
+  created_at: string;
+}
+
+function RewardPanel({
+  masterPlanId,
+  planTitle,
+  shippedAt,
+  celebrationImageUrl,
+  announcementDraft,
+  onShipped,
+}: {
+  masterPlanId: string;
+  planTitle: string;
+  shippedAt: string | null;
+  celebrationImageUrl: string | null;
+  announcementDraft: string | null;
+  onShipped: (updates: Partial<Project>) => void;
+}) {
+  const [credits, setCredits] = useState<CreditEntry[]>([]);
+  const [shipping, setShipping] = useState(false);
+  const [showShipModal, setShowShipModal] = useState(false);
+  const [editableAnnouncement, setEditableAnnouncement] = useState(announcementDraft ?? '');
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/master-projects/${masterPlanId}/credits`)
+      .then(r => r.json() as Promise<{ credits: CreditEntry[] }>)
+      .then(({ credits: c }) => setCredits(c))
+      .catch((err: unknown) => console.error('[credits]', err));
+  }, [masterPlanId]);
+
+  useEffect(() => {
+    if (announcementDraft) setEditableAnnouncement(announcementDraft);
+  }, [announcementDraft]);
+
+  async function handleShip() {
+    setShipping(true);
+    setShowShipModal(true);
+    try {
+      const res = await fetch(`/api/master-projects/${masterPlanId}/ship`, { method: 'POST' });
+      const json = (await res.json()) as { plan?: { shipped_at: string; celebration_image_url: string; ship_announcement_draft: string } };
+      if (json.plan) {
+        setEditableAnnouncement(json.plan.ship_announcement_draft);
+        onShipped({
+          shipped_at: json.plan.shipped_at,
+          celebration_image_url: json.plan.celebration_image_url,
+          ship_announcement_draft: json.plan.ship_announcement_draft,
+        });
+      }
+    } catch (err) {
+      console.error('[ship]', err);
+      toast.error('Ship failed — check console');
+    } finally {
+      setShipping(false);
+    }
+  }
+
+  function copyAnnouncement() {
+    void navigator.clipboard.writeText(editableAnnouncement).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  const isShipped = !!shippedAt;
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+          Credits <span style={{ fontSize: 13, fontWeight: 400, color: '#9ca3af' }}>({credits.length})</span>
+        </h2>
+        {!isShipped && credits.length > 0 && (
+          <button
+            onClick={() => { void handleShip(); }}
+            disabled={shipping}
+            style={{
+              padding: '8px 16px',
+              fontSize: 13,
+              fontWeight: 600,
+              color: '#fff',
+              background: shipping ? '#9ca3af' : '#7c3aed',
+              border: 'none',
+              borderRadius: 8,
+              cursor: shipping ? 'wait' : 'pointer',
+            }}
+          >
+            {shipping ? 'Shipping…' : '🚀 Mark as Shipped'}
+          </button>
+        )}
+        {isShipped && (
+          <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
+            ✓ Shipped {new Date(shippedAt).toLocaleDateString()}
+          </span>
+        )}
+      </div>
+
+      {credits.length === 0 ? (
+        <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>
+          No submitters credited yet. Submissions linked to this plan will appear here.
+        </p>
+      ) : (
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+          {credits.map(c => (
+            <li key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f3f4f6', fontSize: 13 }}>
+              <span style={{ color: '#0f172a', fontWeight: 500 }}>{c.author}</span>
+              <span style={{ color: '#64748b', fontSize: 12 }}>{c.title}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {(showShipModal || isShipped) && (
+        <ShipModal
+          open={showShipModal || isShipped}
+          shipping={shipping}
+          imageUrl={celebrationImageUrl}
+          announcement={editableAnnouncement}
+          onChangeAnnouncement={setEditableAnnouncement}
+          onCopy={copyAnnouncement}
+          copied={copied}
+          onClose={() => setShowShipModal(false)}
+          planTitle={planTitle}
+        />
+      )}
+    </div>
+  );
+}
+
+function ShipModal({
+  open,
+  shipping,
+  imageUrl,
+  announcement,
+  onChangeAnnouncement,
+  onCopy,
+  copied,
+  onClose,
+  planTitle,
+}: {
+  open: boolean;
+  shipping: boolean;
+  imageUrl: string | null;
+  announcement: string;
+  onChangeAnnouncement: (v: string) => void;
+  onCopy: () => void;
+  copied: boolean;
+  onClose: () => void;
+  planTitle: string;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
+        padding: 24,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: '#fff', borderRadius: 12, maxWidth: 640, width: '100%',
+          maxHeight: '90vh', overflow: 'auto', padding: 24,
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>🚀 Shipped: {planTitle}</h2>
+          <button
+            onClick={onClose}
+            style={{ background: 'transparent', border: 'none', fontSize: 24, color: '#94a3b8', cursor: 'pointer' }}
+          >
+            ×
+          </button>
+        </div>
+
+        <div style={{ marginBottom: 16, textAlign: 'center' }}>
+          {shipping || !imageUrl ? (
+            <div style={{ aspectRatio: '1 / 1', background: 'linear-gradient(135deg, #faf5ff, #ede9fe)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7c3aed', fontSize: 14 }}>
+              {shipping ? '🎨 Generating celebration image…' : 'No image yet'}
+            </div>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageUrl} alt="Celebration" style={{ maxWidth: '100%', borderRadius: 8 }} />
+          )}
+        </div>
+
+        <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
+          Announcement draft (edit before sharing)
+        </label>
+        <textarea
+          value={announcement}
+          onChange={e => onChangeAnnouncement(e.target.value)}
+          rows={10}
+          style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', resize: 'vertical' }}
+        />
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onCopy}
+            style={{
+              padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#fff',
+              background: copied ? '#16a34a' : '#7c3aed', border: 'none', borderRadius: 8, cursor: 'pointer',
+            }}
+          >
+            {copied ? '✓ Copied' : 'Copy announcement'}
+          </button>
+          <a
+            href="https://aceable.slack.com"
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#374151',
+              background: '#fff', border: '1px solid #d1d5db', borderRadius: 8, textDecoration: 'none',
+            }}
+          >
+            Open Slack →
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

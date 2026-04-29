@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 interface Cycle {
   id: string; name: string; start_date: string; end_date: string;
@@ -117,6 +118,8 @@ export default function CycleDetailPage() {
         </div>
       </div>
 
+      <DrawingPanel cycleId={cycle.id} />
+
       {/* Committed items */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Committed Work</h2>
@@ -192,6 +195,133 @@ export default function CycleDetailPage() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+interface Drawing {
+  id: string;
+  cycle_id: string;
+  winner_submission_id: string | null;
+  winner_name: string;
+  song_url: string | null;
+  song_generated_at: string | null;
+  drawn_at: string;
+}
+
+interface DrawingEntry {
+  id: string;
+  author: string;
+  title: string;
+  created_at: string;
+}
+
+function DrawingPanel({ cycleId }: { cycleId: string }) {
+  const [drawing, setDrawing] = useState<Drawing | null>(null);
+  const [entries, setEntries] = useState<DrawingEntry[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [drawing_running, setDrawingRunning] = useState(false);
+  const [reveal, setReveal] = useState(false);
+
+  useEffect(() => {
+    void Promise.all([
+      fetch(`/api/cycles/${cycleId}/draw-winner`).then(r => r.json() as Promise<{ drawing: Drawing | null }>),
+      fetch(`/api/cycles/${cycleId}/drawing-entries`).then(r => r.json() as Promise<{ entries: DrawingEntry[] }>),
+    ])
+      .then(([d, e]) => {
+        setDrawing(d.drawing);
+        setEntries(e.entries);
+        if (d.drawing) setReveal(true);
+      })
+      .finally(() => setLoaded(true));
+  }, [cycleId]);
+
+  async function runDrawing() {
+    if (entries.length === 0) return;
+    setDrawingRunning(true);
+    setReveal(false);
+    try {
+      const res = await fetch(`/api/cycles/${cycleId}/draw-winner`, { method: 'POST' });
+      const json = (await res.json()) as { drawing?: Drawing; error?: string };
+      if (json.drawing) {
+        await new Promise(r => setTimeout(r, 1500));
+        setDrawing(json.drawing);
+        setReveal(true);
+      } else if (json.error) {
+        toast.error(`Drawing failed: ${json.error}`);
+      }
+    } catch (err) {
+      console.error('[runDrawing]', err);
+      toast.error('Drawing failed — check console');
+    } finally {
+      setDrawingRunning(false);
+    }
+  }
+
+  if (!loaded) return null;
+
+  return (
+    <div style={{ background: 'linear-gradient(135deg, #faf5ff 0%, #f0f9ff 100%)', border: '1px solid #c4b5fd', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#5b21b6' }}>
+          🎟️ Theme Song Drawing
+        </h2>
+        <span style={{ fontSize: 12, color: '#7c3aed' }}>
+          {entries.length} {entries.length === 1 ? 'entry' : 'entries'} this cycle
+        </span>
+      </div>
+
+      {!drawing ? (
+        <div style={{ textAlign: 'center', padding: '12px 0' }}>
+          {entries.length === 0 ? (
+            <p style={{ fontSize: 13, color: '#7c3aed', margin: 0 }}>
+              No submissions in this cycle yet. Drawing unavailable until the pool fills.
+            </p>
+          ) : (
+            <>
+              <p style={{ fontSize: 13, color: '#7c3aed', margin: '0 0 12px' }}>
+                Pick one winner from {entries.length} {entries.length === 1 ? 'submitter' : 'submitters'}. They&rsquo;ll get a custom theme song about their problem.
+              </p>
+              <button
+                onClick={() => { void runDrawing(); }}
+                disabled={drawing_running}
+                style={{
+                  padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#fff',
+                  background: drawing_running ? '#9ca3af' : '#7c3aed',
+                  border: 'none', borderRadius: 8, cursor: drawing_running ? 'wait' : 'pointer',
+                }}
+              >
+                {drawing_running ? '🎲 Drawing winner…' : '🎲 Run drawing'}
+              </button>
+            </>
+          )}
+        </div>
+      ) : (
+        <div style={{
+          textAlign: 'center', padding: 16,
+          background: '#fff', borderRadius: 8,
+          opacity: reveal ? 1 : 0,
+          transform: reveal ? 'scale(1)' : 'scale(0.95)',
+          transition: 'opacity 0.4s, transform 0.4s',
+        }}>
+          <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 600, letterSpacing: 0.5, marginBottom: 8 }}>
+            🏆 WINNER
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: '#5b21b6', marginBottom: 4 }}>
+            {drawing.winner_name}
+          </div>
+          <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16 }}>
+            Drawn {new Date(drawing.drawn_at).toLocaleString()}
+          </div>
+          {drawing.song_url ? (
+            <audio controls src={drawing.song_url} style={{ width: '100%', maxWidth: 480 }}>
+              Your browser doesn&rsquo;t support audio playback.
+            </audio>
+          ) : (
+            <p style={{ fontSize: 13, color: '#9ca3af' }}>Song not yet generated.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
