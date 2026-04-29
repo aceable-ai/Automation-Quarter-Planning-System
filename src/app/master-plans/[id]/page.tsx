@@ -368,6 +368,8 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
+      <LinkedInventory masterPlanId={project.id} />
+
       {/* Backlog Table */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -560,6 +562,59 @@ export default function ProjectDetailPage() {
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+function LinkedInventory({ masterPlanId }: { masterPlanId: string }) {
+  const [linked, setLinked] = useState<{ name: string; section: string; hours: number | null }[]>([]);
+
+  useEffect(() => {
+    fetch('/api/inventory-links')
+      .then(r => r.json())
+      .then((rows: { inventory_name: string; master_plan_id: string }[]) => {
+        const names = new Set(rows.filter(r => r.master_plan_id === masterPlanId).map(r => r.inventory_name));
+        if (names.size === 0) {
+          setLinked([]);
+          return;
+        }
+        return import('@/lib/q2c2-inventory').then(({ Q2C2_INVENTORY }) => {
+          setLinked(
+            Q2C2_INVENTORY
+              .filter(e => names.has(e.name))
+              .map(e => ({ name: e.name, section: e.section, hours: e.hoursPerMonth }))
+          );
+        });
+      })
+      .catch((err: unknown) => console.error('[LinkedInventory]', err));
+  }, [masterPlanId]);
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+          Linked Inventory <span style={{ fontSize: 13, fontWeight: 400, color: '#9ca3af' }}>({linked.length})</span>
+        </h2>
+        <Link href="/portfolio-dashboard" style={{ fontSize: 12, color: '#4f46e5', textDecoration: 'none' }}>
+          Manage links →
+        </Link>
+      </div>
+      {linked.length === 0 ? (
+        <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>
+          No inventory entries linked. Link from the <Link href="/portfolio-dashboard" style={{ color: '#4f46e5' }}>Portfolio Dashboard</Link>.
+        </p>
+      ) : (
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+          {linked.map(e => (
+            <li key={e.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f3f4f6', fontSize: 13 }}>
+              <span style={{ color: '#0f172a' }}>{e.name}</span>
+              <span style={{ color: '#64748b' }}>
+                {e.section} · {e.hours ?? '—'}h/mo
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
