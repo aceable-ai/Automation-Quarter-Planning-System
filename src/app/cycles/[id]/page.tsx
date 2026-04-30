@@ -33,6 +33,7 @@ export default function CycleDetailPage() {
   const [loaded, setLoaded] = useState(false);
   const [editingRetro, setEditingRetro] = useState<string | null>(null);
   const [draftRetro, setDraftRetro] = useState('');
+  const [showSummary, setShowSummary] = useState(false);
 
   useEffect(() => {
     void Promise.all([
@@ -101,6 +102,19 @@ export default function CycleDetailPage() {
               background: cycle.status === 'completed' ? '#dbeafe' : cycle.status === 'active' ? '#dcfce7' : '#fef9c3',
               color: cycle.status === 'completed' ? '#1e40af' : cycle.status === 'active' ? '#166534' : '#854d0e',
             }}>{cycle.status}</span>
+            <a
+              href={`/api/cycles/${cycle.id}/export-csv`}
+              style={{
+                padding: '6px 14px', fontSize: 12, fontWeight: 600, color: '#374151',
+                background: '#fff', border: '1px solid #d1d5db', borderRadius: 6, textDecoration: 'none',
+              }}
+            >
+              ⇣ Export CSV
+            </a>
+            <button onClick={() => setShowSummary(true)} style={{
+              padding: '6px 14px', fontSize: 12, fontWeight: 600, color: '#fff',
+              background: '#7c3aed', border: 'none', borderRadius: 6, cursor: 'pointer',
+            }}>✨ Exec summary</button>
             {cycle.status === 'active' && (
               <button onClick={() => void completeCycle()} style={{
                 padding: '6px 14px', fontSize: 12, fontWeight: 600, color: '#fff',
@@ -119,6 +133,13 @@ export default function CycleDetailPage() {
       </div>
 
       <DrawingPanel cycleId={cycle.id} />
+
+      <ExecSummaryModal
+        open={showSummary}
+        cycleId={cycle.id}
+        cycleName={cycle.name}
+        onClose={() => setShowSummary(false)}
+      />
 
       {/* Committed items */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 20 }}>
@@ -322,6 +343,119 @@ function DrawingPanel({ cycleId }: { cycleId: string }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ExecSummaryModal({
+  open,
+  cycleId,
+  cycleName,
+  onClose,
+}: {
+  open: boolean;
+  cycleId: string;
+  cycleName: string;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [summary, setSummary] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    if (summary || loading) return;
+    setLoading(true);
+    setError(null);
+    fetch(`/api/cycles/${cycleId}/exec-summary`, { method: 'POST' })
+      .then(r => r.json() as Promise<{ summary?: string; error?: string }>)
+      .then(json => {
+        if (json.summary) setSummary(json.summary);
+        else setError(json.error ?? 'Failed to generate summary');
+      })
+      .catch((err: unknown) => setError(String(err)))
+      .finally(() => setLoading(false));
+  }, [open, cycleId, summary, loading]);
+
+  if (!open) return null;
+
+  function copy() {
+    void navigator.clipboard.writeText(summary).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function regenerate() {
+    setSummary('');
+    setError(null);
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 50, padding: 24,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: '#fff', borderRadius: 12, maxWidth: 720, width: '100%',
+          maxHeight: '90vh', overflow: 'auto', padding: 24,
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
+            ✨ {cycleName} — Exec summary
+          </h2>
+          <button
+            onClick={onClose}
+            style={{ background: 'transparent', border: 'none', fontSize: 24, color: '#94a3b8', cursor: 'pointer' }}
+          >×</button>
+        </div>
+
+        {loading ? (
+          <div style={{ padding: 48, textAlign: 'center', color: '#7c3aed', fontSize: 14 }}>
+            ✨ Claude is summarizing the cycle…
+          </div>
+        ) : error ? (
+          <div>
+            <div style={{ padding: 16, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, color: '#991b1b', fontSize: 13, marginBottom: 12 }}>
+              {error}
+            </div>
+            <button onClick={regenerate} style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#fff', background: '#7c3aed', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
+              Try again
+            </button>
+          </div>
+        ) : (
+          <>
+            <textarea
+              value={summary}
+              onChange={e => setSummary(e.target.value)}
+              rows={20}
+              style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, fontFamily: 'ui-monospace, SF Mono, Menlo, monospace', resize: 'vertical', background: '#fafbfc' }}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+              <button
+                onClick={regenerate}
+                style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#374151', background: '#fff', border: '1px solid #d1d5db', borderRadius: 8, cursor: 'pointer' }}
+              >
+                Regenerate
+              </button>
+              <button
+                onClick={copy}
+                style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#fff', background: copied ? '#16a34a' : '#7c3aed', border: 'none', borderRadius: 8, cursor: 'pointer' }}
+              >
+                {copied ? '✓ Copied' : 'Copy'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
