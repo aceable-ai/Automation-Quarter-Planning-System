@@ -1,16 +1,28 @@
 import { NextResponse } from 'next/server';
 
-interface ModelsErrorBody {
+interface ApiErrorBody {
   error?: { message?: string; type?: string; code?: string };
 }
 
-interface ImageErrorBody {
-  error?: { message?: string; type?: string; code?: string };
+interface DiagResult {
+  key_set: boolean;
+  key_length: number;
+  key_prefix: string | null;
+  next_step?: string;
+  models_status?: number;
+  models_error?: ApiErrorBody['error'] | null;
+  models_fetch_threw?: string;
+  has_gpt_image_1?: boolean;
+  has_dall_e_3?: boolean;
+  image_gen_status?: number;
+  image_gen_error?: ApiErrorBody['error'] | null;
+  image_gen_returned_n?: number;
+  image_fetch_threw?: string;
 }
 
 export async function GET() {
   const key = process.env['OPENAI_API_KEY'];
-  const result: Record<string, unknown> = {
+  const result: DiagResult = {
     key_set: !!key,
     key_length: key ? key.length : 0,
     key_prefix: key ? key.slice(0, 7) : null,
@@ -21,16 +33,15 @@ export async function GET() {
     return NextResponse.json(result);
   }
 
-  // Step 1: hit /v1/models — cheap auth check
   try {
     const modelsRes = await fetch('https://api.openai.com/v1/models', {
       headers: { Authorization: `Bearer ${key}` },
     });
     result.models_status = modelsRes.status;
     if (!modelsRes.ok) {
-      const body = (await modelsRes.json()) as ModelsErrorBody;
+      const body = (await modelsRes.json()) as ApiErrorBody;
       result.models_error = body.error ?? null;
-      result.next_step = `Auth failed at /v1/models. Check key validity + billing on the OpenAI account.`;
+      result.next_step = 'Auth failed at /v1/models. Check key validity + billing on the OpenAI account.';
       return NextResponse.json(result);
     }
     const json = (await modelsRes.json()) as { data: { id: string }[] };
@@ -42,7 +53,6 @@ export async function GET() {
     return NextResponse.json(result);
   }
 
-  // Step 2: tiny image-gen test with gpt-image-1
   try {
     const imgRes = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
@@ -59,14 +69,14 @@ export async function GET() {
     });
     result.image_gen_status = imgRes.status;
     if (!imgRes.ok) {
-      const body = (await imgRes.json()) as ImageErrorBody;
+      const body = (await imgRes.json()) as ApiErrorBody;
       result.image_gen_error = body.error ?? null;
-      result.next_step =
-        body.error?.code === 'unsupported_country_region_terms_of_service'
+      const msg = body.error?.message ?? '';
+      result.next_step = msg.includes('verified')
+        ? 'Org needs verification on platform.openai.com → settings → general → verify org. Or swap to dall-e-3 in code.'
+        : body.error?.code === 'unsupported_country_region_terms_of_service'
           ? 'Region not supported — try a different OpenAI account'
-          : body.error?.message?.includes('verified')
-            ? 'Org needs verification on platform.openai.com → settings → general → verify org. Or swap to dall-e-3 in code.'
-            : `Image gen failed: ${body.error?.message ?? 'unknown'}`;
+          : `Image gen failed: ${msg || 'unknown'}`;
       return NextResponse.json(result);
     }
     const json = (await imgRes.json()) as { data: unknown[] };
