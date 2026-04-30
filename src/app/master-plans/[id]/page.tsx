@@ -67,6 +67,8 @@ export default function ProjectDetailPage() {
   const [tasks, setTasks] = useState<Record<string, EpicTask[]>>({});
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [pushingJira, setPushingJira] = useState<string | null>(null);
+  const [cycles, setCycles] = useState<{ id: string; name: string }[]>([]);
+  const [draftNotes, setDraftNotes] = useState<Record<string, string>>({});
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -74,9 +76,11 @@ export default function ProjectDetailPage() {
     void Promise.all([
       fetch(`/api/master-projects/${id}`).then(r => r.json() as Promise<Project>),
       fetch(`/api/backlog?project=${id}`).then(r => r.json() as Promise<BacklogItem[]>),
-    ]).then(([p, b]: [Project, BacklogItem[]]) => {
+      fetch(`/api/cycles`).then(r => r.json() as Promise<{ id: string; name: string }[]>),
+    ]).then(([p, b, c]: [Project, BacklogItem[], { id: string; name: string }[]]) => {
       setProject({ ...p, phases: Array.isArray(p.phases) ? p.phases : [] });
       setItems(b);
+      setCycles(c);
     }).finally(() => setLoaded(true));
   }, [id]);
 
@@ -432,6 +436,7 @@ export default function ProjectDetailPage() {
                 <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 11 }}>Effort</th>
                 <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 11 }}>Priority</th>
                 <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 11 }}>Status</th>
+                <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 11 }}>Cycle</th>
                 <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 11 }}>Jira</th>
                 <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 11 }}></th>
               </tr>
@@ -500,6 +505,28 @@ export default function ProjectDetailPage() {
                         </select>
                       </td>
                       <td style={{ padding: '8px 6px', textAlign: 'center' }}>
+                        <select
+                          value={item.cycle_id ?? ''}
+                          onChange={e => void updateItem(item.id, { cycleId: e.target.value || null })}
+                          style={{
+                            fontSize: 11,
+                            padding: '3px 6px',
+                            borderRadius: 6,
+                            border: '1px solid #d1d5db',
+                            background: item.cycle_id ? '#ede9fe' : '#fff',
+                            color: item.cycle_id ? '#5b21b6' : '#6b7280',
+                            fontWeight: item.cycle_id ? 600 : 400,
+                            maxWidth: 140,
+                          }}
+                          title={item.cycle_id ? `Committed to ${cycles.find(c => c.id === item.cycle_id)?.name ?? item.cycle_id}` : 'Not in any cycle'}
+                        >
+                          <option value="">— Backlog —</option>
+                          {cycles.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={{ padding: '8px 6px', textAlign: 'center' }}>
                         {item.jira_key ? (
                           <a href={`https://aceable.atlassian.net/browse/${item.jira_key}`} target="_blank" rel="noopener noreferrer"
                             style={{ fontSize: 10, fontWeight: 600, color: '#2563eb', textDecoration: 'none' }}
@@ -522,8 +549,33 @@ export default function ProjectDetailPage() {
                     {/* Expanded task breakdown */}
                     {isExpanded && (
                       <tr>
-                        <td colSpan={12} style={{ padding: '0 6px 12px 40px', background: '#fafbfc' }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6, marginTop: 4 }}>
+                        <td colSpan={13} style={{ padding: '0 6px 12px 40px', background: '#fafbfc' }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6, marginTop: 8 }}>
+                            Notes
+                          </div>
+                          <textarea
+                            value={draftNotes[item.id] ?? item.notes ?? ''}
+                            onChange={e => setDraftNotes(prev => ({ ...prev, [item.id]: e.target.value }))}
+                            onBlur={() => {
+                              const draft = draftNotes[item.id];
+                              if (draft !== undefined && draft !== (item.notes ?? '')) {
+                                void updateItem(item.id, { notes: draft });
+                              }
+                            }}
+                            placeholder="Add notes — context, links, blockers, decisions…"
+                            rows={3}
+                            style={{
+                              width: '100%',
+                              padding: '6px 8px',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: 4,
+                              fontSize: 12,
+                              fontFamily: 'inherit',
+                              resize: 'vertical',
+                              background: '#fff',
+                            }}
+                          />
+                          <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6, marginTop: 12 }}>
                             Tasks ({itemTasks.length})
                           </div>
                           {itemTasks.map(task => {
